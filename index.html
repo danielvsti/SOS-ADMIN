@@ -1,11 +1,83 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <title>SOS Admin</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SOS Admin - Usuarios</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <h1>SOS Admin</h1>
-  <p>Panel de administración en construcción.</p>
+  <header class="topbar">
+    <div>
+      <div class="eyebrow">Sistema SOS Municipal</div>
+      <h1>Admin usuarios</h1>
+    </div>
+    <div class="status-pill" id="connectionStatus">offline</div>
+  </header>
+
+  <main class="layout">
+    <section class="card filters-card">
+      <div class="section-title">Control municipal</div>
+      <div class="filters-grid">
+        <label>
+          Centro
+          <input id="controlCenterInput" value="CC-VINA" />
+        </label>
+        <label>
+          Rol
+          <select id="roleFilter">
+            <option value="ALL">Todos</option>
+            <option value="NEIGHBOR">Vecinos</option>
+            <option value="RESOLVER">Resolutores</option>
+            <option value="OPERATOR">Operadores</option>
+            <option value="ADMIN">Administradores</option>
+          </select>
+        </label>
+        <label>
+          Estado validación
+          <select id="statusFilter">
+            <option value="ALL">Todos</option>
+            <option value="PENDING_VERIFICATION">Pendiente OTP</option>
+            <option value="PROVISIONAL_ACTIVE">Provisional activo</option>
+            <option value="VALIDATED">Validado</option>
+            <option value="REJECTED">Rechazado</option>
+            <option value="SUSPENDED">Suspendido</option>
+          </select>
+        </label>
+        <label>
+          Buscar
+          <input id="searchInput" placeholder="Nombre, teléfono, RUT, email..." />
+        </label>
+        <label>
+          Token admin opcional
+          <input id="adminTokenInput" placeholder="ADMIN_TOKEN si está configurado" type="password" />
+        </label>
+        <button id="saveTokenButton" class="secondary-button">Guardar token</button>
+      </div>
+      <div class="toolbar">
+        <button id="refreshButton">Actualizar usuarios</button>
+        <button id="pendingButton" class="secondary-button">Ver pendientes</button>
+        <span id="summaryLabel" class="summary">-</span>
+      </div>
+    </section>
+
+    <section class="content-grid">
+      <section class="card list-card">
+        <div class="section-title">Usuarios registrados</div>
+        <div id="usersList" class="users-list"></div>
+      </section>
+
+      <aside class="card detail-card" id="detailCard">
+        <div class="empty-state">
+          Selecciona un usuario para ver su ficha, validar su registro o cambiar su rol.
+        </div>
+      </aside>
+    </section>
+  </main>
+
+  <div id="toast" class="toast" hidden></div>
+
+  <script src="app.js"></script>
 </body>
 </html>
