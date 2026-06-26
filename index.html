@@ -58,7 +58,93 @@
       <div class="toolbar">
         <button id="refreshButton">Actualizar usuarios</button>
         <button id="pendingButton" class="secondary-button">Ver pendientes</button>
+        <button id="toggleCreateButton" class="success-button">+ Nuevo usuario</button>
         <span id="summaryLabel" class="summary">-</span>
+      </div>
+    </section>
+
+    <section class="card create-card" id="createCard" hidden>
+      <div class="create-card-header">
+        <div>
+          <div class="section-title">Crear usuarios</div>
+          <p>Agrega vecinos, resolutores, operadores o administradores desde el panel municipal.</p>
+        </div>
+        <button id="closeCreateButton" class="secondary-button">Cerrar</button>
+      </div>
+
+      <div class="create-grid">
+        <div class="create-pane">
+          <h3>Crear un usuario</h3>
+          <div class="edit-grid">
+            <label>Nombre completo<input id="newFullName" placeholder="Ej: Inspector Municipal 01" /></label>
+            <label>Teléfono<input id="newPhone" placeholder="+569XXXXXXXX" /></label>
+            <label>Rol
+              <select id="newRole">
+                <option value="NEIGHBOR">NEIGHBOR - Vecino</option>
+                <option value="RESOLVER">RESOLVER - Resolutor / patrullero</option>
+                <option value="OPERATOR">OPERATOR - Operador central</option>
+                <option value="ADMIN">ADMIN - Administrador</option>
+              </select>
+            </label>
+            <label>Estado validación
+              <select id="newValidationStatus">
+                <option value="PROVISIONAL_ACTIVE">PROVISIONAL_ACTIVE</option>
+                <option value="VALIDATED">VALIDATED</option>
+                <option value="PENDING_VERIFICATION">PENDING_VERIFICATION</option>
+                <option value="REJECTED">REJECTED</option>
+                <option value="SUSPENDED">SUSPENDED</option>
+              </select>
+            </label>
+            <label>Cuenta
+              <select id="newIsActive">
+                <option value="true">Activa</option>
+                <option value="false">Inactiva</option>
+              </select>
+            </label>
+            <label>Email<input id="newEmail" placeholder="usuario@municipio.cl" /></label>
+            <label>RUT<input id="newRut" placeholder="11.111.111-1" /></label>
+            <label>Dirección<input id="newAddress" placeholder="Dirección / sector" /></label>
+            <label>Latitud<input id="newLatitude" placeholder="-33.01895" /></label>
+            <label>Longitud<input id="newLongitude" placeholder="-71.55090" /></label>
+          </div>
+
+          <div class="contacts-box">
+            <h4>Contactos de emergencia opcionales</h4>
+            <div class="edit-grid">
+              <label>Contacto 1<input id="newContact1Name" placeholder="Nombre contacto" /></label>
+              <label>Teléfono contacto 1<input id="newContact1Phone" placeholder="+569..." /></label>
+              <label>Relación 1<input id="newContact1Rel" placeholder="Familiar, vecino, etc." /></label>
+              <label>Contacto 2<input id="newContact2Name" placeholder="Nombre contacto" /></label>
+              <label>Teléfono contacto 2<input id="newContact2Phone" placeholder="+569..." /></label>
+              <label>Relación 2<input id="newContact2Rel" placeholder="Familiar, vecino, etc." /></label>
+            </div>
+          </div>
+
+          <div class="toolbar">
+            <button id="createUserButton" class="success-button">Crear / actualizar usuario</button>
+            <button id="clearCreateFormButton" class="secondary-button">Limpiar</button>
+          </div>
+        </div>
+
+        <div class="create-pane">
+          <h3>Carga masiva</h3>
+          <p class="muted">Pega una línea por usuario. Puedes usar coma, punto y coma o tabulador.</p>
+          <div class="bulk-help">
+            Formato recomendado:<br>
+            <code>nombre,telefono,rol,email,rut,direccion</code><br><br>
+            Ejemplo:<br>
+            <code>Patrullero 01,+56911111111,RESOLVER,patrullero01@muni.cl,,Viña del Mar</code>
+          </div>
+          <label>
+            Usuarios a cargar
+            <textarea id="bulkUsersText" placeholder="Patrullero 01,+56911111111,RESOLVER,patrullero01@muni.cl,,Viña del Mar&#10;Patrullero 02,+56922222222,RESOLVER,patrullero02@muni.cl,,Viña del Mar"></textarea>
+          </label>
+          <div class="toolbar">
+            <button id="bulkCreateButton" class="success-button">Crear usuarios masivamente</button>
+            <button id="bulkExampleButton" class="secondary-button">Cargar ejemplo</button>
+          </div>
+          <div id="bulkResult" class="bulk-result" hidden></div>
+        </div>
       </div>
     </section>
 

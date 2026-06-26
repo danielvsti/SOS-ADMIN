@@ -17,10 +17,19 @@ const els = {
   saveTokenButton: document.getElementById("saveTokenButton"),
   refreshButton: document.getElementById("refreshButton"),
   pendingButton: document.getElementById("pendingButton"),
+  toggleCreateButton: document.getElementById("toggleCreateButton"),
+  closeCreateButton: document.getElementById("closeCreateButton"),
   summaryLabel: document.getElementById("summaryLabel"),
   usersList: document.getElementById("usersList"),
   detailCard: document.getElementById("detailCard"),
-  toast: document.getElementById("toast")
+  toast: document.getElementById("toast"),
+  createCard: document.getElementById("createCard"),
+  createUserButton: document.getElementById("createUserButton"),
+  clearCreateFormButton: document.getElementById("clearCreateFormButton"),
+  bulkCreateButton: document.getElementById("bulkCreateButton"),
+  bulkExampleButton: document.getElementById("bulkExampleButton"),
+  bulkUsersText: document.getElementById("bulkUsersText"),
+  bulkResult: document.getElementById("bulkResult")
 };
 
 const ROLES = ["NEIGHBOR", "RESOLVER", "OPERATOR", "ADMIN"];
@@ -49,7 +58,7 @@ function toast(message) {
   els.toast.hidden = false;
   setTimeout(() => {
     els.toast.hidden = true;
-  }, 2600);
+  }, 3000);
 }
 
 function setConnection(online) {
@@ -83,7 +92,7 @@ function userBadges(user) {
   return `
     <span class="badge role-${escapeHtml(user.role)}">${escapeHtml(user.role)}</span>
     <span class="badge status-${escapeHtml(user.validation_status)}">${escapeHtml(user.validation_status || "-")}</span>
-    <span class="badge">${user.is_active ? "Activo" : "Inactivo"}</span>
+    <span class="badge ${user.is_active ? "account-active" : "account-inactive"}">${user.is_active ? "Activo" : "Inactivo"}</span>
   `;
 }
 
@@ -215,6 +224,7 @@ function renderDetail() {
           ${user.is_active ? "Suspender" : "Reactivar"}
         </button>
       </div>
+      <div class="hint-text">Rechazar deja el usuario inactivo. Validar lo deja activo.</div>
     </div>
 
     <div class="detail-section">
@@ -292,9 +302,9 @@ window.updateValidation = async function updateValidation(validationStatus) {
   if (!state.selectedUserId) return;
 
   const label = validationStatus === "VALIDATED"
-    ? "validar"
+    ? "validar y activar"
     : validationStatus === "REJECTED"
-      ? "rechazar"
+      ? "rechazar e inactivar"
       : "actualizar";
 
   if (!confirm(`¿Confirmas ${label} este usuario?`)) return;
@@ -382,12 +392,258 @@ async function refreshSelected() {
   }
 }
 
+function getCreateFormPayload() {
+  const contacts = [];
+
+  const c1Name = document.getElementById("newContact1Name").value.trim();
+  const c1Phone = document.getElementById("newContact1Phone").value.trim();
+  const c1Rel = document.getElementById("newContact1Rel").value.trim();
+
+  if (c1Name && c1Phone) {
+    contacts.push({
+      name: c1Name,
+      phone: c1Phone,
+      relationship: c1Rel || null,
+      priority: 1
+    });
+  }
+
+  const c2Name = document.getElementById("newContact2Name").value.trim();
+  const c2Phone = document.getElementById("newContact2Phone").value.trim();
+  const c2Rel = document.getElementById("newContact2Rel").value.trim();
+
+  if (c2Name && c2Phone) {
+    contacts.push({
+      name: c2Name,
+      phone: c2Phone,
+      relationship: c2Rel || null,
+      priority: 2
+    });
+  }
+
+  return {
+    control_center_code: els.controlCenterInput.value.trim() || "CC-VINA",
+    full_name: document.getElementById("newFullName").value.trim(),
+    phone: document.getElementById("newPhone").value.trim(),
+    role: document.getElementById("newRole").value,
+    validation_status: document.getElementById("newValidationStatus").value,
+    is_active: document.getElementById("newIsActive").value === "true",
+    email: document.getElementById("newEmail").value.trim() || null,
+    rut: document.getElementById("newRut").value.trim() || null,
+    declared_address: document.getElementById("newAddress").value.trim() || null,
+    latitude: parseNullableNumber(document.getElementById("newLatitude").value),
+    longitude: parseNullableNumber(document.getElementById("newLongitude").value),
+    emergency_contacts: contacts
+  };
+}
+
+async function createUserFromForm() {
+  try {
+    const payload = getCreateFormPayload();
+
+    if (!payload.full_name || !payload.phone) {
+      toast("Nombre y teléfono son obligatorios");
+      return;
+    }
+
+    els.createUserButton.disabled = true;
+    els.createUserButton.textContent = "Guardando...";
+
+    const data = await postAction("/admin/users", payload);
+
+    toast(data.operation === "created" ? "Usuario creado" : "Usuario actualizado");
+    clearCreateForm(false);
+    await loadUsers();
+
+    if (data.user?.id) {
+      await selectUser(data.user.id);
+    }
+  } catch (error) {
+    console.error(error);
+    toast(error.message);
+  } finally {
+    els.createUserButton.disabled = false;
+    els.createUserButton.textContent = "Crear / actualizar usuario";
+  }
+}
+
+function clearCreateForm(showToast = true) {
+  [
+    "newFullName", "newPhone", "newEmail", "newRut", "newAddress",
+    "newLatitude", "newLongitude", "newContact1Name", "newContact1Phone",
+    "newContact1Rel", "newContact2Name", "newContact2Phone", "newContact2Rel"
+  ].forEach(id => {
+    document.getElementById(id).value = "";
+  });
+
+  document.getElementById("newRole").value = "NEIGHBOR";
+  document.getElementById("newValidationStatus").value = "PROVISIONAL_ACTIVE";
+  document.getElementById("newIsActive").value = "true";
+
+  if (showToast) toast("Formulario limpio");
+}
+
+function parseBulkUsers(text) {
+  const lines = String(text || "")
+    .split(/\r?\n/)
+    .map(line => line.trim())
+    .filter(line => line && !line.startsWith("#"));
+
+  const users = [];
+
+  for (const line of lines) {
+    const separator = line.includes("\t")
+      ? "\t"
+      : line.includes(";")
+        ? ";"
+        : ",";
+
+    const parts = line.split(separator).map(part => part.trim());
+
+    if (parts[0]?.toLowerCase() === "nombre" || parts[0]?.toLowerCase() === "full_name") {
+      continue;
+    }
+
+    const [full_name, phone, role, email, rut, declared_address] = parts;
+
+    if (!full_name || !phone) {
+      users.push({
+        _invalid: true,
+        full_name: full_name || "",
+        phone: phone || "",
+        reason: "Nombre y teléfono son obligatorios"
+      });
+      continue;
+    }
+
+    const cleanRole = (role || "RESOLVER").toUpperCase();
+    const finalRole = ROLES.includes(cleanRole) ? cleanRole : "RESOLVER";
+
+    users.push({
+      control_center_code: els.controlCenterInput.value.trim() || "CC-VINA",
+      full_name,
+      phone,
+      role: finalRole,
+      email: email || null,
+      rut: rut || null,
+      declared_address: declared_address || null,
+      validation_status: finalRole === "NEIGHBOR" ? "PROVISIONAL_ACTIVE" : "VALIDATED",
+      is_active: true,
+      emergency_contacts: []
+    });
+  }
+
+  return users;
+}
+
+async function bulkCreateUsers() {
+  try {
+    const parsed = parseBulkUsers(els.bulkUsersText.value);
+    const invalid = parsed.filter(u => u._invalid);
+    const users = parsed.filter(u => !u._invalid);
+
+    if (!users.length) {
+      toast("No hay usuarios válidos para cargar");
+      return;
+    }
+
+    const ok = confirm(`Se crearán/actualizarán ${users.length} usuarios. ¿Continuar?`);
+    if (!ok) return;
+
+    els.bulkCreateButton.disabled = true;
+    els.bulkCreateButton.textContent = "Cargando...";
+
+    const res = await fetch(`${API}/admin/users/bulk`, {
+      method: "POST",
+      headers: apiHeaders(),
+      body: JSON.stringify({ users })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok || data.status !== "ok") {
+      throw new Error(data.message || "No fue posible cargar usuarios");
+    }
+
+    renderBulkResult(data, invalid);
+    toast(`Carga lista: ${data.created} creados, ${data.updated} actualizados, ${data.failed} fallidos`);
+    await loadUsers();
+
+  } catch (error) {
+    console.error(error);
+    toast(error.message);
+  } finally {
+    els.bulkCreateButton.disabled = false;
+    els.bulkCreateButton.textContent = "Crear usuarios masivamente";
+  }
+}
+
+function renderBulkResult(data, invalid = []) {
+  const failed = (data.results || []).filter(r => r.status === "error");
+
+  els.bulkResult.hidden = false;
+  els.bulkResult.innerHTML = `
+    <strong>Resultado carga</strong><br>
+    Total procesados: ${data.total}<br>
+    Creados: ${data.created}<br>
+    Actualizados: ${data.updated}<br>
+    Fallidos backend: ${data.failed}<br>
+    Líneas inválidas locales: ${invalid.length}
+    ${failed.length ? `
+      <div class="error-list">
+        ${failed.map(f => `Línea ${f.index + 1}: ${escapeHtml(f.message)}`).join("<br>")}
+      </div>
+    ` : ""}
+    ${invalid.length ? `
+      <div class="error-list">
+        ${invalid.map((f, i) => `Línea inválida ${i + 1}: ${escapeHtml(f.reason)}`).join("<br>")}
+      </div>
+    ` : ""}
+  `;
+}
+
+function loadBulkExample() {
+  els.bulkUsersText.value = [
+    "Patrullero Municipal 01,+56911111111,RESOLVER,patrullero01@municipio.cl,,Base Municipal",
+    "Patrullero Municipal 02,+56922222222,RESOLVER,patrullero02@municipio.cl,,Base Municipal",
+    "Operador Central 01,+56933333333,OPERATOR,operador01@municipio.cl,,Central Municipal",
+    "Administrador Municipal,+56944444444,ADMIN,admin@municipio.cl,,Central Municipal"
+  ].join("\n");
+}
+
+function applyRoleDefaults() {
+  const role = document.getElementById("newRole").value;
+
+  if (role === "NEIGHBOR") {
+    document.getElementById("newValidationStatus").value = "PROVISIONAL_ACTIVE";
+  } else {
+    document.getElementById("newValidationStatus").value = "VALIDATED";
+  }
+
+  document.getElementById("newIsActive").value = "true";
+}
+
 els.refreshButton.addEventListener("click", loadUsers);
 els.pendingButton.addEventListener("click", () => {
   els.roleFilter.value = "NEIGHBOR";
   els.statusFilter.value = "PROVISIONAL_ACTIVE";
   loadUsers();
 });
+
+els.toggleCreateButton.addEventListener("click", () => {
+  els.createCard.hidden = false;
+  window.scrollTo({ top: els.createCard.offsetTop - 80, behavior: "smooth" });
+});
+
+els.closeCreateButton.addEventListener("click", () => {
+  els.createCard.hidden = true;
+});
+
+els.createUserButton.addEventListener("click", createUserFromForm);
+els.clearCreateFormButton.addEventListener("click", () => clearCreateForm(true));
+els.bulkCreateButton.addEventListener("click", bulkCreateUsers);
+els.bulkExampleButton.addEventListener("click", loadBulkExample);
+document.getElementById("newRole").addEventListener("change", applyRoleDefaults);
 
 els.saveTokenButton.addEventListener("click", () => {
   localStorage.setItem("sos_admin_token", els.adminTokenInput.value.trim());
