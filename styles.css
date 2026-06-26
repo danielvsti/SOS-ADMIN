@@ -448,3 +448,59 @@ button:disabled {
     grid-template-columns: 1fr;
   }
 }
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.small-button {
+  padding: 10px 14px;
+  font-size: 14px;
+}
+
+.session-pill {
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: #e0f2fe;
+  color: #075985;
+  font-weight: 900;
+}
+
+.login-view {
+  min-height: calc(100vh - 96px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.login-card {
+  width: min(520px, 100%);
+  padding: 28px;
+}
+
+.login-card h2 {
+  margin: 6px 0 10px;
+  font-size: 34px;
+}
+
+.login-card p {
+  color: #4b5563;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.login-card button {
+  width: 100%;
+  margin-top: 14px;
+}
+
+.login-error {
+  margin-top: 14px;
+  color: #b91c1c;
+  font-weight: 900;
+}

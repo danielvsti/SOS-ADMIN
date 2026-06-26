@@ -13,10 +13,28 @@
       <div class="eyebrow">Sistema SOS Municipal</div>
       <h1>Admin usuarios</h1>
     </div>
-    <div class="status-pill" id="connectionStatus">offline</div>
+    <div class="topbar-actions">
+      <div class="session-pill" id="sessionUser" hidden></div>
+      <button id="logoutButton" class="secondary-button small-button" hidden>Cerrar sesión</button>
+      <div class="status-pill" id="connectionStatus">offline</div>
+    </div>
   </header>
 
-  <main class="layout">
+  <section class="login-view" id="loginView">
+    <div class="card login-card">
+      <div class="eyebrow">Acceso restringido</div>
+      <h2>Entrar al Admin</h2>
+      <p>Ingresa con un usuario creado como <strong>ADMIN</strong>. Los operadores no pueden administrar usuarios.</p>
+      <label>Teléfono administrador
+        <input id="loginPhoneInput" placeholder="+569XXXXXXXX" autocomplete="tel" />
+      </label>
+      <button id="loginButton" class="success-button">Entrar</button>
+      <div id="loginError" class="login-error"></div>
+      <div class="hint-text">Para demo, el acceso se valida por teléfono registrado. Más adelante conectamos OTP/WhatsApp.</div>
+    </div>
+  </section>
+
+  <main class="layout" id="appView" hidden>
     <section class="card filters-card">
       <div class="section-title">Control municipal</div>
       <div class="filters-grid">
@@ -50,10 +68,10 @@
           <input id="searchInput" placeholder="Nombre, teléfono, RUT, email..." />
         </label>
         <label>
-          Token admin opcional
-          <input id="adminTokenInput" placeholder="ADMIN_TOKEN si está configurado" type="password" />
+          Token admin emergencia
+          <input id="adminTokenInput" placeholder="Opcional: ADMIN_TOKEN técnico" type="password" />
         </label>
-        <button id="saveTokenButton" class="secondary-button">Guardar token</button>
+        <button id="saveTokenButton" class="secondary-button">Guardar token técnico</button>
       </div>
       <div class="toolbar">
         <button id="refreshButton">Actualizar usuarios</button>
@@ -76,12 +94,12 @@
         <div class="create-pane">
           <h3>Crear un usuario</h3>
           <div class="edit-grid">
-            <label>Nombre completo<input id="newFullName" placeholder="Ej: Inspector Municipal 01" /></label>
+            <label>Nombre completo<input id="newFullName" placeholder="Ej: Juan Pérez" /></label>
             <label>Teléfono<input id="newPhone" placeholder="+569XXXXXXXX" /></label>
             <label>Rol
               <select id="newRole">
                 <option value="NEIGHBOR">NEIGHBOR - Vecino</option>
-                <option value="RESOLVER">RESOLVER - Resolutor / patrullero</option>
+                <option value="RESOLVER">RESOLVER - Resolutor</option>
                 <option value="OPERATOR">OPERATOR - Operador central</option>
                 <option value="ADMIN">ADMIN - Administrador</option>
               </select>
@@ -133,11 +151,11 @@
             Formato recomendado:<br>
             <code>nombre,telefono,rol,email,rut,direccion</code><br><br>
             Ejemplo:<br>
-            <code>Patrullero 01,+56911111111,RESOLVER,patrullero01@muni.cl,,Viña del Mar</code>
+            <code>Juan Pérez,+56911111111,RESOLVER,juan.perez@muni.cl,,Base Municipal</code>
           </div>
           <label>
             Usuarios a cargar
-            <textarea id="bulkUsersText" placeholder="Patrullero 01,+56911111111,RESOLVER,patrullero01@muni.cl,,Viña del Mar&#10;Patrullero 02,+56922222222,RESOLVER,patrullero02@muni.cl,,Viña del Mar"></textarea>
+            <textarea id="bulkUsersText" placeholder="Juan Pérez,+56911111111,RESOLVER,juan.perez@muni.cl,,Base Municipal&#10;María González,+56922222222,RESOLVER,maria.gonzalez@muni.cl,,Base Municipal"></textarea>
           </label>
           <div class="toolbar">
             <button id="bulkCreateButton" class="success-button">Crear usuarios masivamente</button>

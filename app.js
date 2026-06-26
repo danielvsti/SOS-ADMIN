@@ -4,10 +4,18 @@ const state = {
   users: [],
   selectedUserId: null,
   selectedUser: null,
-  detail: null
+  detail: null,
+  sessionUser: null
 };
 
 const els = {
+  loginView: document.getElementById("loginView"),
+  appView: document.getElementById("appView"),
+  loginPhoneInput: document.getElementById("loginPhoneInput"),
+  loginButton: document.getElementById("loginButton"),
+  loginError: document.getElementById("loginError"),
+  sessionUser: document.getElementById("sessionUser"),
+  logoutButton: document.getElementById("logoutButton"),
   connectionStatus: document.getElementById("connectionStatus"),
   controlCenterInput: document.getElementById("controlCenterInput"),
   roleFilter: document.getElementById("roleFilter"),
@@ -41,16 +49,127 @@ const VALIDATION_STATUSES = [
   "SUSPENDED"
 ];
 
-function getAdminToken() {
+function getLegacyAdminToken() {
   return localStorage.getItem("sos_admin_token") || "";
 }
 
+function getSessionToken() {
+  return localStorage.getItem("sos_admin_session_token") || "";
+}
+
+function setSession(token, user) {
+  localStorage.setItem("sos_admin_session_token", token);
+  localStorage.setItem("sos_admin_session_user", JSON.stringify(user || {}));
+}
+
+function clearSession() {
+  localStorage.removeItem("sos_admin_session_token");
+  localStorage.removeItem("sos_admin_session_user");
+}
+
 function apiHeaders() {
-  const token = getAdminToken();
+  const legacyToken = getLegacyAdminToken();
+  const sessionToken = getSessionToken();
   return {
     "Content-Type": "application/json",
-    ...(token ? { "x-admin-token": token } : {})
+    ...(sessionToken ? { "Authorization": `Bearer ${sessionToken}` } : {}),
+    ...(legacyToken ? { "x-admin-token": legacyToken } : {})
   };
+}
+
+function showLogin(message = "") {
+  els.loginView.hidden = false;
+  els.appView.hidden = true;
+  els.sessionUser.hidden = true;
+  els.logoutButton.hidden = true;
+  els.loginError.textContent = message;
+  setConnection(false);
+}
+
+function showApp(user) {
+  state.sessionUser = user || state.sessionUser;
+  els.loginView.hidden = true;
+  els.appView.hidden = false;
+  els.sessionUser.hidden = false;
+  els.logoutButton.hidden = false;
+  els.sessionUser.textContent = `${state.sessionUser?.full_name || "ADMIN"} · ${state.sessionUser?.role || "ADMIN"}`;
+}
+
+async function panelLogin() {
+  const phone = els.loginPhoneInput.value.trim();
+  els.loginError.textContent = "";
+
+  if (!phone) {
+    els.loginError.textContent = "Ingresa el teléfono del administrador.";
+    return;
+  }
+
+  try {
+    els.loginButton.disabled = true;
+    els.loginButton.textContent = "Entrando...";
+
+    const res = await fetch(`${API}/auth/panel-login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phone, panel_type: "ADMIN" })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok || data.status !== "ok") {
+      throw new Error(data.message || "No fue posible ingresar");
+    }
+
+    setSession(data.token, data.user);
+    showApp(data.user);
+    await loadUsers();
+  } catch (error) {
+    console.error(error);
+    clearSession();
+    els.loginError.textContent = error.message;
+  } finally {
+    els.loginButton.disabled = false;
+    els.loginButton.textContent = "Entrar";
+  }
+}
+
+async function checkStoredSession() {
+  const token = getSessionToken();
+  if (!token) {
+    showLogin();
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API}/auth/session`, { headers: apiHeaders() });
+    const data = await res.json();
+
+    if (!res.ok || data.status !== "ok") {
+      throw new Error(data.message || "Sesión inválida");
+    }
+
+    if (data.user.role !== "ADMIN") {
+      throw new Error("Este panel requiere rol ADMIN.");
+    }
+
+    showApp(data.user);
+    await loadUsers();
+  } catch (error) {
+    console.error(error);
+    clearSession();
+    showLogin(error.message);
+  }
+}
+
+function logout() {
+  clearSession();
+  state.users = [];
+  state.selectedUserId = null;
+  state.selectedUser = null;
+  state.detail = null;
+  els.usersList.innerHTML = "";
+  els.detailCard.innerHTML = `<div class="empty-state">Selecciona un usuario para ver su ficha, validar su registro o cambiar su rol.</div>`;
+  showLogin("Sesión cerrada.");
 }
 
 function toast(message) {
@@ -127,6 +246,12 @@ async function loadUsers() {
     });
 
     const data = await res.json();
+
+    if (res.status === 401) {
+      clearSession();
+      showLogin(data.message || "Sesión expirada");
+      return;
+    }
 
     if (!res.ok || data.status !== "ok") {
       throw new Error(data.message || "No fue posible cargar usuarios");
@@ -604,8 +729,8 @@ function renderBulkResult(data, invalid = []) {
 
 function loadBulkExample() {
   els.bulkUsersText.value = [
-    "Patrullero Municipal 01,+56911111111,RESOLVER,patrullero01@municipio.cl,,Base Municipal",
-    "Patrullero Municipal 02,+56922222222,RESOLVER,patrullero02@municipio.cl,,Base Municipal",
+    "Juan Pérez,+56911111111,RESOLVER,juan.perez@municipio.cl,,Base Municipal",
+    "María González,+56922222222,RESOLVER,maria.gonzalez@municipio.cl,,Base Municipal",
     "Operador Central 01,+56933333333,OPERATOR,operador01@municipio.cl,,Central Municipal",
     "Administrador Municipal,+56944444444,ADMIN,admin@municipio.cl,,Central Municipal"
   ].join("\n");
@@ -647,8 +772,14 @@ document.getElementById("newRole").addEventListener("change", applyRoleDefaults)
 
 els.saveTokenButton.addEventListener("click", () => {
   localStorage.setItem("sos_admin_token", els.adminTokenInput.value.trim());
-  toast("Token guardado localmente");
+  toast("Token técnico guardado localmente");
 });
+
+els.loginButton.addEventListener("click", panelLogin);
+els.loginPhoneInput.addEventListener("keydown", event => {
+  if (event.key === "Enter") panelLogin();
+});
+els.logoutButton.addEventListener("click", logout);
 
 [els.roleFilter, els.statusFilter, els.controlCenterInput].forEach(el => {
   el.addEventListener("change", loadUsers);
@@ -660,5 +791,5 @@ els.searchInput.addEventListener("input", () => {
   searchTimer = setTimeout(loadUsers, 400);
 });
 
-els.adminTokenInput.value = getAdminToken();
-loadUsers();
+els.adminTokenInput.value = getLegacyAdminToken();
+checkStoredSession();
