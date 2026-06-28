@@ -22,8 +22,6 @@ const els = {
   roleFilter: document.getElementById("roleFilter"),
   statusFilter: document.getElementById("statusFilter"),
   searchInput: document.getElementById("searchInput"),
-  adminTokenInput: document.getElementById("adminTokenInput"),
-  saveTokenButton: document.getElementById("saveTokenButton"),
   refreshButton: document.getElementById("refreshButton"),
   pendingButton: document.getElementById("pendingButton"),
   toggleCreateButton: document.getElementById("toggleCreateButton"),
@@ -50,10 +48,6 @@ const VALIDATION_STATUSES = [
   "SUSPENDED"
 ];
 
-function getLegacyAdminToken() {
-  return localStorage.getItem("sos_admin_token") || "";
-}
-
 function getSessionToken() {
   return localStorage.getItem("sos_admin_session_token") || "";
 }
@@ -69,12 +63,10 @@ function clearSession() {
 }
 
 function apiHeaders() {
-  const legacyToken = getLegacyAdminToken();
   const sessionToken = getSessionToken();
   return {
     "Content-Type": "application/json",
-    ...(sessionToken ? { "Authorization": `Bearer ${sessionToken}` } : {}),
-    ...(legacyToken ? { "x-admin-token": legacyToken } : {})
+    ...(sessionToken ? { "Authorization": `Bearer ${sessionToken}` } : {})
   };
 }
 
@@ -771,11 +763,6 @@ els.bulkCreateButton.addEventListener("click", bulkCreateUsers);
 els.bulkExampleButton.addEventListener("click", loadBulkExample);
 document.getElementById("newRole").addEventListener("change", applyRoleDefaults);
 
-els.saveTokenButton.addEventListener("click", () => {
-  localStorage.setItem("sos_admin_token", els.adminTokenInput.value.trim());
-  toast("Token técnico guardado localmente");
-});
-
 els.loginButton.addEventListener("click", panelLogin);
 els.loginPhoneInput.addEventListener("keydown", event => {
   if (event.key === "Enter") panelLogin();
@@ -792,5 +779,5 @@ els.searchInput.addEventListener("input", () => {
   searchTimer = setTimeout(loadUsers, 400);
 });
 
-els.adminTokenInput.value = getLegacyAdminToken();
+localStorage.removeItem("sos_admin_token");
 checkStoredSession();
