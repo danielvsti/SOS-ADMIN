@@ -1,4 +1,5 @@
-const API = "https://sos.vsti.cl";
+const SOS_CONFIG = window.SOS_CONFIG || {};
+const API = SOS_CONFIG.API_BASE || "https://sos.vsti.cl";
 
 const state = {
   users: [],
