@@ -36,9 +36,10 @@
 
   <main class="layout" id="appView" hidden>
     <nav class="admin-tabs" id="adminTabs" aria-label="Secciones administración">
-      <button class="admin-tab active" type="button" data-section="users">Usuarios</button>
-      <button class="admin-tab" type="button" data-section="platform">Configuración plataforma</button>
-      <button class="admin-tab" type="button" data-section="sirens">Sirenas</button>
+      <button class="admin-tab active" type="button" data-section="users"><span>👥</span> Usuarios</button>
+      <button class="admin-tab" type="button" data-section="platform"><span>⚙️</span> Configuración plataforma</button>
+      <button class="admin-tab" type="button" data-section="sirens"><span>📣</span> Sirenas</button>
+      <button class="admin-tab" type="button" data-section="devices"><span>🆘</span> Botones SOS físicos</button>
     </nav>
     <section class="card filters-card" id="userFiltersCard">
       <div class="section-title">Control municipal</div>
@@ -146,7 +147,12 @@
           <label class="check-row"><input id="cfgNearbyNotifications" type="checkbox" /> Enviar notificación a vecinos cercanos ante emergencia activa</label>
           <div class="edit-grid">
             <label>Radio notificación (metros)<input id="cfgNearbyRadius" type="number" min="50" max="5000" /></label>
-            <label>Categorías notificables<input id="cfgNearbyCategories" placeholder="FIRE,TRAFFIC_ACCIDENT,URBAN_RISK" /></label>
+            <div class="form-field full-field">
+              <div class="field-label">Categorías notificables</div>
+              <input id="cfgNearbyCategories" type="hidden" />
+              <div id="nearbyCategoryChips" class="category-chips" aria-label="Categorías notificables"></div>
+              <div class="hint-text">Selecciona por click. VIF, botones silenciosos y casos sensibles quedan excluidos por seguridad.</div>
+            </div>
           </div>
           <div class="hint-text">No usar para VIF, botones silenciosos o casos donde pueda exponerse al denunciante.</div>
         </div>
@@ -201,6 +207,55 @@
         <div class="create-pane">
           <h3>Sirenas registradas</h3>
           <div id="sirensList" class="users-list"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card platform-card" id="physicalDevicesAdminCard">
+      <div class="create-card-header">
+        <div>
+          <div class="section-title">Botones SOS físicos del Centro de Control</div>
+          <p>Alta y edición de botones físicos GPS/comunitarios. Estos dispositivos generan tickets físicos cuando la funcionalidad municipal está habilitada.</p>
+        </div>
+        <button id="reloadDevicesButton" class="secondary-button">Actualizar botones</button>
+      </div>
+
+      <div class="create-grid">
+        <div class="create-pane">
+          <h3>Alta / edición botón SOS físico</h3>
+          <div class="edit-grid">
+            <label>Código interno<input id="deviceIdInput" placeholder="BTN-VINA-001" /></label>
+            <label>Nombre<input id="deviceNameInput" placeholder="Botón SOS 5 Norte" /></label>
+            <label>Tipo
+              <select id="deviceTypeInput">
+                <option value="PHYSICAL_SOS">Botón SOS físico</option>
+                <option value="GPS_TRACKER">GPS tracker</option>
+                <option value="COMMUNITY_BUTTON">Botón comunitario</option>
+                <option value="OTHER">Otro</option>
+              </select>
+            </label>
+            <label>Flespi / Platform ID<input id="devicePlatformIdInput" placeholder="8322560" /></label>
+            <label>Teléfono SIM<input id="deviceSimPhoneInput" placeholder="+569..." /></label>
+            <label>Latitud<input id="deviceLatitudeInput" placeholder="-33.01895" /></label>
+            <label>Longitud<input id="deviceLongitudeInput" placeholder="-71.55090" /></label>
+            <label>Dirección / ubicación<input id="deviceAddressInput" placeholder="Referencia / dirección" /></label>
+            <label>Estado
+              <select id="deviceEnabledInput">
+                <option value="true">Habilitado</option>
+                <option value="false">Deshabilitado</option>
+              </select>
+            </label>
+            <label>Heartbeat máximo permitido (seg)<input id="deviceHeartbeatInput" type="number" min="30" max="86400" value="600" /></label>
+          </div>
+          <label>Notas operativas<textarea id="deviceNotesInput" class="short-textarea" placeholder="Instalación, SIM, responsable, observaciones..."></textarea></label>
+          <div class="toolbar">
+            <button id="saveDeviceButton" class="success-button">Guardar botón físico</button>
+            <button id="clearDeviceButton" class="secondary-button">Limpiar</button>
+          </div>
+        </div>
+        <div class="create-pane">
+          <h3>Botones registrados</h3>
+          <div id="devicesList" class="users-list"></div>
         </div>
       </div>
     </section>

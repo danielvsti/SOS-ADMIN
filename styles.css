@@ -640,3 +640,88 @@ button:disabled {
     flex-direction: column;
   }
 }
+
+
+/* v0.19.2 admin UX */
+.admin-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  padding: 10px;
+  background: linear-gradient(180deg, #eef2f7, #e5e7eb);
+  border: 1px solid #dbe3ef;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.8), 0 8px 20px rgba(15,23,42,.06);
+}
+
+.admin-tab {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 58px;
+  border: 2px solid transparent;
+  background: #ffffff;
+  color: #334155;
+  box-shadow: 0 2px 8px rgba(15,23,42,.04);
+}
+
+.admin-tab.active {
+  background: #0f172a;
+  color: #ffffff;
+  border-color: #2563eb;
+  box-shadow: 0 10px 22px rgba(37,99,235,.22);
+}
+
+.admin-tab:not(.active):hover {
+  background: #f8fafc;
+  border-color: #bfdbfe;
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.full-field {
+  grid-column: 1 / -1;
+}
+
+.field-label {
+  color: #374151;
+  font-weight: 800;
+}
+
+.category-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.category-chip {
+  width: auto;
+  padding: 10px 14px;
+  border: 2px solid #d1d5db;
+  background: #ffffff;
+  color: #334155;
+  border-radius: 999px;
+  box-shadow: none;
+  font-size: 14px;
+}
+
+.category-chip.active {
+  border-color: #2563eb;
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.short-textarea {
+  min-height: 110px;
+}
+
+@media (max-width: 900px) {
+  .admin-tabs {
+    grid-template-columns: 1fr;
+    position: static;
+  }
+}

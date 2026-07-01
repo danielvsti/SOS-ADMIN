@@ -9,6 +9,7 @@ const state = {
   sessionUser: null,
   platformSettings: null,
   sirens: [],
+  physicalDevices: [],
   usersPage: 1,
   usersPageSize: 10,
   activeAdminSection: "users"
@@ -49,6 +50,12 @@ const els = {
   saveSirenButton: document.getElementById("saveSirenButton"),
   clearSirenButton: document.getElementById("clearSirenButton"),
   sirensList: document.getElementById("sirensList"),
+  reloadDevicesButton: document.getElementById("reloadDevicesButton"),
+  saveDeviceButton: document.getElementById("saveDeviceButton"),
+  clearDeviceButton: document.getElementById("clearDeviceButton"),
+  devicesList: document.getElementById("devicesList"),
+  physicalDevicesAdminCard: document.getElementById("physicalDevicesAdminCard"),
+  nearbyCategoryChips: document.getElementById("nearbyCategoryChips"),
   adminTabs: document.getElementById("adminTabs"),
   userFiltersCard: document.getElementById("userFiltersCard"),
   createCard: document.getElementById("createCard"),
@@ -62,6 +69,16 @@ const els = {
 };
 
 const ROLES = ["NEIGHBOR", "RESOLVER", "OPERATOR", "ADMIN"];
+const NOTIFIABLE_CATEGORIES = [
+  { code: "FIRE", label: "Incendio" },
+  { code: "TRAFFIC_ACCIDENT", label: "Accidente tránsito" },
+  { code: "URBAN_RISK", label: "Riesgo urbano" },
+  { code: "MEDICAL", label: "Emergencia médica" },
+  { code: "SECURITY", label: "Seguridad pública" },
+  { code: "SOS_MANUAL", label: "SOS manual" },
+  { code: "OTHER", label: "Otro" }
+];
+const BLOCKED_NEARBY_CATEGORIES = new Set(["VIF", "VIF_SILENT", "SILENT", "SILENT_SOS"]);
 const VALIDATION_STATUSES = [
   "PENDING_VERIFICATION",
   "PROVISIONAL_ACTIVE",
@@ -139,6 +156,7 @@ async function panelLogin() {
     showApp(data.user);
     await loadPlatformSettings();
     await loadSirens();
+    await loadPhysicalDevices();
     await loadUsers();
   } catch (error) {
     console.error(error);
@@ -172,6 +190,7 @@ async function checkStoredSession() {
     showApp(data.user);
     await loadPlatformSettings();
     await loadSirens();
+    await loadPhysicalDevices();
     await loadUsers();
   } catch (error) {
     console.error(error);
@@ -234,7 +253,8 @@ function adminSectionCards() {
   return {
     users: [els.userFiltersCard, els.createCard, els.usersContentGrid],
     platform: [els.platformConfigCard],
-    sirens: [els.sirensAdminCard]
+    sirens: [els.sirensAdminCard],
+    devices: [els.physicalDevicesAdminCard]
   };
 }
 
@@ -331,6 +351,39 @@ function csvValue(id) {
     .filter(Boolean);
 }
 
+function selectedNearbyCategories() {
+  return csvValue("cfgNearbyCategories").filter(code => !BLOCKED_NEARBY_CATEGORIES.has(code));
+}
+
+function setNearbyCategories(categories = []) {
+  const clean = [...new Set((categories || [])
+    .map(item => String(item || "").trim().toUpperCase())
+    .filter(Boolean)
+    .filter(code => !BLOCKED_NEARBY_CATEGORIES.has(code)))];
+  const input = document.getElementById("cfgNearbyCategories");
+  if (input) input.value = clean.join(",");
+  renderNearbyCategoryChips(clean);
+}
+
+function renderNearbyCategoryChips(selected = selectedNearbyCategories()) {
+  if (!els.nearbyCategoryChips) return;
+  const selectedSet = new Set(selected);
+  els.nearbyCategoryChips.innerHTML = NOTIFIABLE_CATEGORIES.map(category => `
+    <button type="button" class="category-chip ${selectedSet.has(category.code) ? "active" : ""}" data-category="${escapeHtml(category.code)}">
+      ${selectedSet.has(category.code) ? "✓ " : ""}${escapeHtml(category.label)}
+    </button>
+  `).join("");
+}
+
+function toggleNearbyCategory(code) {
+  const normalized = String(code || "").trim().toUpperCase();
+  if (!normalized || BLOCKED_NEARBY_CATEGORIES.has(normalized)) return;
+  const selected = new Set(selectedNearbyCategories());
+  if (selected.has(normalized)) selected.delete(normalized);
+  else selected.add(normalized);
+  setNearbyCategories([...selected]);
+}
+
 async function loadPlatformSettings() {
   if (!getSessionToken()) return;
   const code = currentControlCenterCode();
@@ -381,7 +434,7 @@ function renderPlatformSettings(settings = {}) {
 
   setBool("cfgNearbyNotifications", np.nearby_neighbor_notifications_enabled === true);
   document.getElementById("cfgNearbyRadius").value = np.radius_meters ?? 300;
-  document.getElementById("cfgNearbyCategories").value = (np.categories || []).join(",");
+  setNearbyCategories(np.categories || ["FIRE", "TRAFFIC_ACCIDENT", "URBAN_RISK"]);
 
   document.getElementById("cfgDedupRadius").value = ip.dedup_radius_meters ?? 120;
   document.getElementById("cfgDedupWindow").value = ip.dedup_window_minutes ?? 120;
@@ -421,7 +474,7 @@ function collectPlatformSettings() {
     notification_policy: {
       nearby_neighbor_notifications_enabled: boolValue("cfgNearbyNotifications"),
       radius_meters: numberValue("cfgNearbyRadius", 300),
-      categories: csvValue("cfgNearbyCategories"),
+      categories: selectedNearbyCategories(),
       channels: ["PUSH"],
       privacy_mode: "SAFE_AREA_ONLY"
     },
@@ -557,6 +610,124 @@ async function saveSiren() {
     toast(error.message);
   } finally {
     els.saveSirenButton.disabled = false;
+  }
+}
+
+function deviceMetadata(device = {}) {
+  return device.metadata && typeof device.metadata === "object" ? device.metadata : {};
+}
+
+async function loadPhysicalDevices() {
+  if (!getSessionToken() || !els.devicesList) return;
+  const code = currentControlCenterCode();
+  try {
+    els.devicesList.innerHTML = `<div class="empty-state">Cargando botones físicos...</div>`;
+    const res = await fetch(`${API}/admin/control-centers/${encodeURIComponent(code)}/devices?type=PHYSICAL_SOS`, {
+      headers: apiHeaders()
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.status !== "ok") {
+      throw new Error(data.message || "Endpoint de botones físicos pendiente en API");
+    }
+    state.physicalDevices = data.devices || [];
+    renderPhysicalDevices();
+  } catch (error) {
+    console.error(error);
+    state.physicalDevices = [];
+    els.devicesList.innerHTML = `<div class="empty-state">${escapeHtml(error.message)}<br><br>El mantenedor visual ya está listo; falta habilitar el endpoint admin de dispositivos si este mensaje persiste.</div>`;
+  }
+}
+
+function renderPhysicalDevices() {
+  if (!els.devicesList) return;
+  if (!state.physicalDevices.length) {
+    els.devicesList.innerHTML = `<div class="empty-state">Sin botones físicos registrados para este centro.</div>`;
+    return;
+  }
+  els.devicesList.innerHTML = state.physicalDevices.map(device => {
+    const meta = deviceMetadata(device);
+    const enabled = meta.enabled !== false && device.status !== "DISABLED";
+    const lat = device.last_latitude ?? meta.latitude ?? "-";
+    const lon = device.last_longitude ?? meta.longitude ?? "-";
+    return `
+      <div class="user-row" onclick="editPhysicalDevice('${escapeHtml(device.id)}')">
+        <div>
+          <div class="user-name">${escapeHtml(device.name || device.id)}</div>
+          <div class="user-meta">${escapeHtml(device.id)} · ${escapeHtml(device.type || "PHYSICAL_SOS")} · Flespi ${escapeHtml(device.platform_id || "-")}</div>
+          <div class="user-meta">GPS: ${escapeHtml(lat)}, ${escapeHtml(lon)} · SIM ${escapeHtml(meta.sim_phone || "-")}</div>
+          <div class="user-meta">Último heartbeat: ${formatDate(device.last_seen)} · ${escapeHtml(meta.registered_address || "Sin dirección")}</div>
+        </div>
+        <div class="badges"><span class="badge ${enabled ? "account-active" : "account-inactive"}">${enabled ? "Habilitado" : "Deshabilitado"}</span></div>
+      </div>
+    `;
+  }).join("");
+}
+
+window.editPhysicalDevice = function editPhysicalDevice(id) {
+  const device = state.physicalDevices.find(item => String(item.id) === String(id));
+  if (!device) return;
+  const meta = deviceMetadata(device);
+  document.getElementById("deviceIdInput").value = device.id || "";
+  document.getElementById("deviceNameInput").value = device.name || "";
+  document.getElementById("deviceTypeInput").value = device.type || "PHYSICAL_SOS";
+  document.getElementById("devicePlatformIdInput").value = device.platform_id || "";
+  document.getElementById("deviceSimPhoneInput").value = meta.sim_phone || meta.phone || "";
+  document.getElementById("deviceLatitudeInput").value = device.last_latitude ?? meta.latitude ?? "";
+  document.getElementById("deviceLongitudeInput").value = device.last_longitude ?? meta.longitude ?? "";
+  document.getElementById("deviceAddressInput").value = meta.registered_address || meta.address || "";
+  document.getElementById("deviceEnabledInput").value = (meta.enabled === false || device.status === "DISABLED") ? "false" : "true";
+  document.getElementById("deviceHeartbeatInput").value = meta.heartbeat_timeout_seconds ?? 600;
+  document.getElementById("deviceNotesInput").value = meta.notes || "";
+};
+
+function clearPhysicalDeviceForm() {
+  ["deviceIdInput", "deviceNameInput", "devicePlatformIdInput", "deviceSimPhoneInput", "deviceLatitudeInput", "deviceLongitudeInput", "deviceAddressInput", "deviceNotesInput"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = "";
+  });
+  document.getElementById("deviceTypeInput").value = "PHYSICAL_SOS";
+  document.getElementById("deviceEnabledInput").value = "true";
+  document.getElementById("deviceHeartbeatInput").value = 600;
+}
+
+async function savePhysicalDevice() {
+  const code = currentControlCenterCode();
+  const payload = {
+    id: document.getElementById("deviceIdInput").value.trim(),
+    name: document.getElementById("deviceNameInput").value.trim(),
+    type: document.getElementById("deviceTypeInput").value,
+    platform_id: document.getElementById("devicePlatformIdInput").value.trim(),
+    last_latitude: document.getElementById("deviceLatitudeInput").value.trim(),
+    last_longitude: document.getElementById("deviceLongitudeInput").value.trim(),
+    status: document.getElementById("deviceEnabledInput").value === "true" ? "OFFLINE" : "DISABLED",
+    metadata: {
+      enabled: document.getElementById("deviceEnabledInput").value === "true",
+      sim_phone: document.getElementById("deviceSimPhoneInput").value.trim(),
+      registered_address: document.getElementById("deviceAddressInput").value.trim(),
+      heartbeat_timeout_seconds: numberValue("deviceHeartbeatInput", 600),
+      notes: document.getElementById("deviceNotesInput").value.trim()
+    }
+  };
+  if (!payload.id || !payload.name) {
+    toast("Código y nombre del botón físico son obligatorios");
+    return;
+  }
+  try {
+    els.saveDeviceButton.disabled = true;
+    const res = await fetch(`${API}/admin/control-centers/${encodeURIComponent(code)}/devices`, {
+      method: "POST",
+      headers: apiHeaders(),
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.status !== "ok") throw new Error(data.message || "No fue posible guardar botón físico");
+    toast("Botón SOS físico guardado");
+    await loadPhysicalDevices();
+  } catch (error) {
+    console.error(error);
+    toast(error.message);
+  } finally {
+    els.saveDeviceButton.disabled = false;
   }
 }
 
@@ -1156,6 +1327,13 @@ els.saveSettingsButton.addEventListener("click", savePlatformSettings);
 els.reloadSirensButton.addEventListener("click", loadSirens);
 els.saveSirenButton.addEventListener("click", saveSiren);
 els.clearSirenButton.addEventListener("click", clearSirenForm);
+els.reloadDevicesButton?.addEventListener("click", loadPhysicalDevices);
+els.saveDeviceButton?.addEventListener("click", savePhysicalDevice);
+els.clearDeviceButton?.addEventListener("click", clearPhysicalDeviceForm);
+els.nearbyCategoryChips?.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-category]");
+  if (button) toggleNearbyCategory(button.dataset.category);
+});
 
 
 [els.roleFilter, els.statusFilter].forEach(el => {
@@ -1165,6 +1343,7 @@ els.clearSirenButton.addEventListener("click", clearSirenForm);
 els.controlCenterInput.addEventListener("change", async () => {
   await loadPlatformSettings();
   await loadSirens();
+  await loadPhysicalDevices();
   await loadUsers();
 });
 
