@@ -6,7 +6,9 @@ const state = {
   selectedUserId: null,
   selectedUser: null,
   detail: null,
-  sessionUser: null
+  sessionUser: null,
+  platformSettings: null,
+  sirens: []
 };
 
 const els = {
@@ -36,7 +38,14 @@ const els = {
   bulkCreateButton: document.getElementById("bulkCreateButton"),
   bulkExampleButton: document.getElementById("bulkExampleButton"),
   bulkUsersText: document.getElementById("bulkUsersText"),
-  bulkResult: document.getElementById("bulkResult")
+  bulkResult: document.getElementById("bulkResult"),
+  reloadSettingsButton: document.getElementById("reloadSettingsButton"),
+  saveSettingsButton: document.getElementById("saveSettingsButton"),
+  settingsStatus: document.getElementById("settingsStatus"),
+  reloadSirensButton: document.getElementById("reloadSirensButton"),
+  saveSirenButton: document.getElementById("saveSirenButton"),
+  clearSirenButton: document.getElementById("clearSirenButton"),
+  sirensList: document.getElementById("sirensList")
 };
 
 const ROLES = ["NEIGHBOR", "RESOLVER", "OPERATOR", "ADMIN"];
@@ -115,6 +124,8 @@ async function panelLogin() {
 
     setSession(data.token, data.user);
     showApp(data.user);
+    await loadPlatformSettings();
+    await loadSirens();
     await loadUsers();
   } catch (error) {
     console.error(error);
@@ -146,6 +157,8 @@ async function checkStoredSession() {
     }
 
     showApp(data.user);
+    await loadPlatformSettings();
+    await loadSirens();
     await loadUsers();
   } catch (error) {
     console.error(error);
@@ -198,6 +211,256 @@ function formatDate(value) {
 
 function shortId(id) {
   return String(id || "").slice(0, 8).toUpperCase();
+}
+
+function currentControlCenterCode() {
+  return (els.controlCenterInput.value || "CC-VINA").trim() || "CC-VINA";
+}
+
+function boolValue(id) {
+  return document.getElementById(id)?.checked === true;
+}
+
+function setBool(id, value) {
+  const el = document.getElementById(id);
+  if (el) el.checked = value === true;
+}
+
+function numberValue(id, fallback) {
+  const value = Number(document.getElementById(id)?.value);
+  return Number.isFinite(value) ? value : fallback;
+}
+
+function csvValue(id) {
+  return String(document.getElementById(id)?.value || "")
+    .split(",")
+    .map(item => item.trim().toUpperCase())
+    .filter(Boolean);
+}
+
+async function loadPlatformSettings() {
+  if (!getSessionToken()) return;
+  const code = currentControlCenterCode();
+  try {
+    els.settingsStatus.textContent = "Cargando configuración...";
+    const res = await fetch(`${API}/admin/control-centers/${encodeURIComponent(code)}/settings`, {
+      headers: apiHeaders()
+    });
+    const data = await res.json();
+    if (!res.ok || data.status !== "ok") throw new Error(data.message || "No fue posible cargar configuración");
+    state.platformSettings = data.settings;
+    renderPlatformSettings(data.settings);
+    els.settingsStatus.textContent = `Configuración cargada · ${data.control_center?.name || code}`;
+  } catch (error) {
+    console.error(error);
+    els.settingsStatus.textContent = error.message;
+    toast(error.message);
+  }
+}
+
+function renderPlatformSettings(settings = {}) {
+  const f = settings.features || {};
+  const sp = settings.siren_policy || {};
+  const vp = settings.voice_policy || {};
+  const np = settings.notification_policy || {};
+  const ip = settings.incident_policy || {};
+  const rp = settings.resolver_policy || {};
+
+  setBool("cfgMobileApp", f.mobile_app_enabled !== false);
+  setBool("cfgResolverApp", f.resolver_app_enabled !== false);
+  setBool("cfgPhysicalButtons", f.physical_sos_buttons_enabled !== false);
+  setBool("cfgSirens", f.sirens_enabled !== false);
+  setBool("cfgSecureVoice", f.secure_voice_enabled !== false);
+  setBool("cfgMultiReports", f.multi_report_incidents_enabled !== false);
+  setBool("cfgResolverAutoAssign", f.resolver_auto_assignment_enabled !== false);
+
+  setBool("cfgSirenAuto", sp.auto_activate_on_ticket === true);
+  setBool("cfgSirenManual", sp.operator_manual_control_enabled !== false);
+  document.getElementById("cfgSirenMode").value = sp.activation_mode || "MANUAL_ONLY";
+  document.getElementById("cfgSirenDefaultDuration").value = sp.default_duration_seconds ?? 60;
+  document.getElementById("cfgSirenMaxDuration").value = sp.max_duration_seconds ?? 180;
+  document.getElementById("cfgSirenCooldown").value = sp.cooldown_seconds ?? 120;
+
+  setBool("cfgVoiceRecording", vp.recording_enabled === true);
+  setBool("cfgVoiceSupervision", vp.supervision_enabled !== false);
+  document.getElementById("cfgVoiceExpires").value = vp.expires_minutes ?? 15;
+  document.getElementById("cfgVoiceMax").value = vp.max_call_minutes ?? 30;
+
+  setBool("cfgNearbyNotifications", np.nearby_neighbor_notifications_enabled === true);
+  document.getElementById("cfgNearbyRadius").value = np.radius_meters ?? 300;
+  document.getElementById("cfgNearbyCategories").value = (np.categories || []).join(",");
+
+  document.getElementById("cfgDedupRadius").value = ip.dedup_radius_meters ?? 120;
+  document.getElementById("cfgDedupWindow").value = ip.dedup_window_minutes ?? 120;
+  document.getElementById("cfgResolverGpsAge").value = rp.max_location_age_seconds ?? 180;
+}
+
+function collectPlatformSettings() {
+  return {
+    features: {
+      mobile_app_enabled: boolValue("cfgMobileApp"),
+      resolver_app_enabled: boolValue("cfgResolverApp"),
+      physical_sos_buttons_enabled: boolValue("cfgPhysicalButtons"),
+      sirens_enabled: boolValue("cfgSirens"),
+      secure_voice_enabled: boolValue("cfgSecureVoice"),
+      multi_report_incidents_enabled: boolValue("cfgMultiReports"),
+      resolver_auto_assignment_enabled: boolValue("cfgResolverAutoAssign")
+    },
+    siren_policy: {
+      activation_mode: document.getElementById("cfgSirenMode").value,
+      auto_activate_on_ticket: boolValue("cfgSirenAuto"),
+      operator_manual_control_enabled: boolValue("cfgSirenManual"),
+      default_duration_seconds: numberValue("cfgSirenDefaultDuration", 60),
+      max_duration_seconds: numberValue("cfgSirenMaxDuration", 180),
+      cooldown_seconds: numberValue("cfgSirenCooldown", 120),
+      auto_categories: ["FIRE", "SECURITY"]
+    },
+    voice_policy: {
+      recording_enabled: boolValue("cfgVoiceRecording"),
+      supervision_enabled: boolValue("cfgVoiceSupervision"),
+      expires_minutes: numberValue("cfgVoiceExpires", 15),
+      max_call_minutes: numberValue("cfgVoiceMax", 30)
+    },
+    notification_policy: {
+      nearby_neighbor_notifications_enabled: boolValue("cfgNearbyNotifications"),
+      radius_meters: numberValue("cfgNearbyRadius", 300),
+      categories: csvValue("cfgNearbyCategories"),
+      channels: ["PUSH"],
+      privacy_mode: "SAFE_AREA_ONLY"
+    },
+    incident_policy: {
+      dedup_enabled: boolValue("cfgMultiReports"),
+      dedup_radius_meters: numberValue("cfgDedupRadius", 120),
+      dedup_window_minutes: numberValue("cfgDedupWindow", 120)
+    },
+    resolver_policy: {
+      auto_assignment_enabled: boolValue("cfgResolverAutoAssign"),
+      max_location_age_seconds: numberValue("cfgResolverGpsAge", 180),
+      max_active_tickets: 1
+    }
+  };
+}
+
+async function savePlatformSettings() {
+  const code = currentControlCenterCode();
+  try {
+    els.saveSettingsButton.disabled = true;
+    els.settingsStatus.textContent = "Guardando...";
+    const res = await fetch(`${API}/admin/control-centers/${encodeURIComponent(code)}/settings`, {
+      method: "PUT",
+      headers: apiHeaders(),
+      body: JSON.stringify({ settings: collectPlatformSettings() })
+    });
+    const data = await res.json();
+    if (!res.ok || data.status !== "ok") throw new Error(data.message || "No fue posible guardar configuración");
+    state.platformSettings = data.settings;
+    renderPlatformSettings(data.settings);
+    els.settingsStatus.textContent = "Configuración guardada";
+    toast("Configuración plataforma guardada");
+  } catch (error) {
+    console.error(error);
+    els.settingsStatus.textContent = error.message;
+    toast(error.message);
+  } finally {
+    els.saveSettingsButton.disabled = false;
+  }
+}
+
+async function loadSirens() {
+  if (!getSessionToken()) return;
+  const code = currentControlCenterCode();
+  try {
+    const res = await fetch(`${API}/admin/control-centers/${encodeURIComponent(code)}/sirens`, {
+      headers: apiHeaders()
+    });
+    const data = await res.json();
+    if (!res.ok || data.status !== "ok") throw new Error(data.message || "No fue posible cargar sirenas");
+    state.sirens = data.sirens || [];
+    renderSirens();
+  } catch (error) {
+    console.error(error);
+    toast(error.message);
+  }
+}
+
+function renderSirens() {
+  if (!state.sirens.length) {
+    els.sirensList.innerHTML = `<div class="empty-state">Sin sirenas registradas para este centro.</div>`;
+    return;
+  }
+  els.sirensList.innerHTML = state.sirens.map(siren => `
+    <div class="user-row" onclick="editSiren('${escapeHtml(siren.id)}')">
+      <div>
+        <div class="user-name">${escapeHtml(siren.name || siren.id)}</div>
+        <div class="user-meta">${escapeHtml(siren.id)} · ${escapeHtml(siren.location || "Sin ubicación textual")}</div>
+        <div class="user-meta">GPS: ${escapeHtml(siren.latitude ?? "-")}, ${escapeHtml(siren.longitude ?? "-")} · ${siren.enabled === false ? "Deshabilitada" : "Habilitada"}</div>
+      </div>
+      <div class="badges"><span class="badge role-RESOLVER">${escapeHtml(siren.activation_mode || "MANUAL_ONLY")}</span></div>
+    </div>
+  `).join("");
+}
+
+window.editSiren = function editSiren(id) {
+  const siren = state.sirens.find(item => String(item.id) === String(id));
+  if (!siren) return;
+  document.getElementById("sirenIdInput").value = siren.id || "";
+  document.getElementById("sirenNameInput").value = siren.name || "";
+  document.getElementById("sirenLatitudeInput").value = siren.latitude ?? "";
+  document.getElementById("sirenLongitudeInput").value = siren.longitude ?? "";
+  document.getElementById("sirenLocationInput").value = siren.location || "";
+  document.getElementById("sirenEnabledInput").value = siren.enabled === false ? "false" : "true";
+  document.getElementById("sirenActivationModeInput").value = siren.activation_mode || "MANUAL_ONLY";
+  document.getElementById("sirenDefaultDurationInput").value = siren.default_duration_seconds ?? 60;
+  document.getElementById("sirenMaxDurationInput").value = siren.max_duration_seconds ?? 180;
+  document.getElementById("sirenCooldownInput").value = siren.cooldown_seconds ?? 120;
+};
+
+function clearSirenForm() {
+  ["sirenIdInput", "sirenNameInput", "sirenLatitudeInput", "sirenLongitudeInput", "sirenLocationInput"].forEach(id => {
+    document.getElementById(id).value = "";
+  });
+  document.getElementById("sirenEnabledInput").value = "true";
+  document.getElementById("sirenActivationModeInput").value = "MANUAL_ONLY";
+  document.getElementById("sirenDefaultDurationInput").value = 60;
+  document.getElementById("sirenMaxDurationInput").value = 180;
+  document.getElementById("sirenCooldownInput").value = 120;
+}
+
+async function saveSiren() {
+  const code = currentControlCenterCode();
+  const payload = {
+    id: document.getElementById("sirenIdInput").value.trim(),
+    name: document.getElementById("sirenNameInput").value.trim(),
+    latitude: document.getElementById("sirenLatitudeInput").value.trim(),
+    longitude: document.getElementById("sirenLongitudeInput").value.trim(),
+    location: document.getElementById("sirenLocationInput").value.trim(),
+    enabled: document.getElementById("sirenEnabledInput").value === "true",
+    activation_mode: document.getElementById("sirenActivationModeInput").value,
+    default_duration_seconds: numberValue("sirenDefaultDurationInput", 60),
+    max_duration_seconds: numberValue("sirenMaxDurationInput", 180),
+    cooldown_seconds: numberValue("sirenCooldownInput", 120)
+  };
+  if (!payload.id || !payload.name) {
+    toast("Código y nombre de sirena son obligatorios");
+    return;
+  }
+  try {
+    els.saveSirenButton.disabled = true;
+    const res = await fetch(`${API}/admin/control-centers/${encodeURIComponent(code)}/sirens`, {
+      method: "POST",
+      headers: apiHeaders(),
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (!res.ok || data.status !== "ok") throw new Error(data.message || "No fue posible guardar sirena");
+    toast("Sirena guardada");
+    await loadSirens();
+  } catch (error) {
+    console.error(error);
+    toast(error.message);
+  } finally {
+    els.saveSirenButton.disabled = false;
+  }
 }
 
 function userBadges(user) {
@@ -768,9 +1031,21 @@ els.loginPhoneInput.addEventListener("keydown", event => {
   if (event.key === "Enter") panelLogin();
 });
 els.logoutButton.addEventListener("click", logout);
+els.reloadSettingsButton.addEventListener("click", loadPlatformSettings);
+els.saveSettingsButton.addEventListener("click", savePlatformSettings);
+els.reloadSirensButton.addEventListener("click", loadSirens);
+els.saveSirenButton.addEventListener("click", saveSiren);
+els.clearSirenButton.addEventListener("click", clearSirenForm);
 
-[els.roleFilter, els.statusFilter, els.controlCenterInput].forEach(el => {
+
+[els.roleFilter, els.statusFilter].forEach(el => {
   el.addEventListener("change", loadUsers);
+});
+
+els.controlCenterInput.addEventListener("change", async () => {
+  await loadPlatformSettings();
+  await loadSirens();
+  await loadUsers();
 });
 
 let searchTimer = null;

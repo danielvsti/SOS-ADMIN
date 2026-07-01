@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>SOS Admin - Usuarios</title>
+  <title>SOS Admin - Plataforma</title>
   <link rel="manifest" href="manifest.json" />
   <link rel="stylesheet" href="styles.css" />
 </head>
@@ -11,7 +11,7 @@
   <header class="topbar">
     <div>
       <div class="eyebrow">Sistema SOS Municipal</div>
-      <h1>Admin usuarios</h1>
+      <h1>Admin plataforma</h1>
     </div>
     <div class="topbar-actions">
       <div class="session-pill" id="sessionUser" hidden></div>
@@ -74,6 +74,128 @@
         <button id="pendingButton" class="secondary-button">Ver pendientes</button>
         <button id="toggleCreateButton" class="success-button">+ Nuevo usuario</button>
         <span id="summaryLabel" class="summary">-</span>
+      </div>
+    </section>
+
+    <section class="card platform-card" id="platformConfigCard">
+      <div class="create-card-header">
+        <div>
+          <div class="section-title">Configuración Plataforma</div>
+          <p>Define las políticas funcionales del Centro de Control seleccionado. Estas reglas se aplican al mapa, tickets, llamadas, sirenas y reportes ciudadanos.</p>
+        </div>
+        <button id="reloadSettingsButton" class="secondary-button">Recargar configuración</button>
+      </div>
+
+      <div class="settings-grid">
+        <div class="settings-pane">
+          <h3>Funcionalidades</h3>
+          <label class="check-row"><input id="cfgMobileApp" type="checkbox" /> App Vecino habilitada</label>
+          <label class="check-row"><input id="cfgResolverApp" type="checkbox" /> App Resolutor habilitada</label>
+          <label class="check-row"><input id="cfgPhysicalButtons" type="checkbox" /> Botones SOS físicos habilitados</label>
+          <label class="check-row"><input id="cfgSirens" type="checkbox" /> Sirenas habilitadas</label>
+          <label class="check-row"><input id="cfgSecureVoice" type="checkbox" /> Llamadas seguras habilitadas</label>
+          <label class="check-row"><input id="cfgMultiReports" type="checkbox" /> Agrupar múltiples reportes ciudadanos</label>
+          <label class="check-row"><input id="cfgResolverAutoAssign" type="checkbox" /> Autoasignación de resolutores</label>
+        </div>
+
+        <div class="settings-pane">
+          <h3>Política de incidentes</h3>
+          <div class="edit-grid one-col">
+            <label>Radio agrupamiento incidentes (metros)<input id="cfgDedupRadius" type="number" min="10" max="2000" /></label>
+            <label>Ventana agrupamiento incidentes (minutos)<input id="cfgDedupWindow" type="number" min="1" max="1440" /></label>
+            <label>GPS resolutor máximo válido (segundos)<input id="cfgResolverGpsAge" type="number" min="30" max="86400" /></label>
+          </div>
+        </div>
+
+        <div class="settings-pane">
+          <h3>Sirenas</h3>
+          <label class="check-row"><input id="cfgSirenAuto" type="checkbox" /> Activar sirenas automáticamente al crear ticket</label>
+          <label class="check-row"><input id="cfgSirenManual" type="checkbox" /> Permitir activación manual por operador</label>
+          <div class="edit-grid one-col">
+            <label>Modo activación
+              <select id="cfgSirenMode">
+                <option value="MANUAL_ONLY">Solo manual</option>
+                <option value="AUTO_BY_CATEGORY">Automática por categoría</option>
+                <option value="AUTO_ALL">Automática para todo ticket</option>
+              </select>
+            </label>
+            <label>Duración por defecto (segundos)<input id="cfgSirenDefaultDuration" type="number" min="5" max="600" /></label>
+            <label>Duración máxima (segundos)<input id="cfgSirenMaxDuration" type="number" min="10" max="900" /></label>
+            <label>Cooldown entre activaciones (segundos)<input id="cfgSirenCooldown" type="number" min="0" max="3600" /></label>
+          </div>
+        </div>
+
+        <div class="settings-pane">
+          <h3>Llamadas seguras</h3>
+          <label class="check-row"><input id="cfgVoiceRecording" type="checkbox" /> Grabar llamadas</label>
+          <label class="check-row"><input id="cfgVoiceSupervision" type="checkbox" /> Supervisión WA-Center</label>
+          <div class="edit-grid one-col">
+            <label>Expiración si nadie atiende (min)<input id="cfgVoiceExpires" type="number" min="1" max="240" /></label>
+            <label>Duración máxima llamada (min)<input id="cfgVoiceMax" type="number" min="1" max="240" /></label>
+          </div>
+        </div>
+
+        <div class="settings-pane wide-pane">
+          <h3>Notificaciones a vecinos cercanos</h3>
+          <label class="check-row"><input id="cfgNearbyNotifications" type="checkbox" /> Enviar notificación a vecinos cercanos ante emergencia activa</label>
+          <div class="edit-grid">
+            <label>Radio notificación (metros)<input id="cfgNearbyRadius" type="number" min="50" max="5000" /></label>
+            <label>Categorías notificables<input id="cfgNearbyCategories" placeholder="FIRE,TRAFFIC_ACCIDENT,URBAN_RISK" /></label>
+          </div>
+          <div class="hint-text">No usar para VIF, botones silenciosos o casos donde pueda exponerse al denunciante.</div>
+        </div>
+      </div>
+
+      <div class="toolbar">
+        <button id="saveSettingsButton" class="success-button">Guardar configuración plataforma</button>
+        <span id="settingsStatus" class="summary">-</span>
+      </div>
+    </section>
+
+    <section class="card platform-card" id="sirensAdminCard">
+      <div class="create-card-header">
+        <div>
+          <div class="section-title">Sirenas del Centro de Control</div>
+          <p>Alta y edición de sirenas visibles/controlables por operador cuando la funcionalidad esté habilitada.</p>
+        </div>
+        <button id="reloadSirensButton" class="secondary-button">Actualizar sirenas</button>
+      </div>
+
+      <div class="create-grid">
+        <div class="create-pane">
+          <h3>Alta / edición sirena</h3>
+          <div class="edit-grid">
+            <label>Código sirena<input id="sirenIdInput" placeholder="SIR-VINA-001" /></label>
+            <label>Nombre<input id="sirenNameInput" placeholder="Sirena Libertad / 5 Norte" /></label>
+            <label>Latitud<input id="sirenLatitudeInput" placeholder="-33.01895" /></label>
+            <label>Longitud<input id="sirenLongitudeInput" placeholder="-71.55090" /></label>
+            <label>Ubicación<input id="sirenLocationInput" placeholder="Referencia / dirección" /></label>
+            <label>Estado
+              <select id="sirenEnabledInput">
+                <option value="true">Habilitada</option>
+                <option value="false">Deshabilitada</option>
+              </select>
+            </label>
+            <label>Modo
+              <select id="sirenActivationModeInput">
+                <option value="MANUAL_ONLY">Solo manual</option>
+                <option value="AUTO_BY_CATEGORY">Automática por categoría</option>
+                <option value="AUTO_ALL">Automática para todo ticket</option>
+              </select>
+            </label>
+            <label>Duración defecto<input id="sirenDefaultDurationInput" type="number" value="60" /></label>
+            <label>Duración máxima<input id="sirenMaxDurationInput" type="number" value="180" /></label>
+            <label>Cooldown<input id="sirenCooldownInput" type="number" value="120" /></label>
+          </div>
+          <div class="toolbar">
+            <button id="saveSirenButton" class="success-button">Guardar sirena</button>
+            <button id="clearSirenButton" class="secondary-button">Limpiar</button>
+          </div>
+        </div>
+        <div class="create-pane">
+          <h3>Sirenas registradas</h3>
+          <div id="sirensList" class="users-list"></div>
+        </div>
       </div>
     </section>
 
