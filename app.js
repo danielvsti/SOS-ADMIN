@@ -8,7 +8,10 @@ const state = {
   detail: null,
   sessionUser: null,
   platformSettings: null,
-  sirens: []
+  sirens: [],
+  usersPage: 1,
+  usersPageSize: 10,
+  activeAdminSection: "users"
 };
 
 const els = {
@@ -45,7 +48,17 @@ const els = {
   reloadSirensButton: document.getElementById("reloadSirensButton"),
   saveSirenButton: document.getElementById("saveSirenButton"),
   clearSirenButton: document.getElementById("clearSirenButton"),
-  sirensList: document.getElementById("sirensList")
+  sirensList: document.getElementById("sirensList"),
+  adminTabs: document.getElementById("adminTabs"),
+  userFiltersCard: document.getElementById("userFiltersCard"),
+  createCard: document.getElementById("createCard"),
+  usersContentGrid: document.getElementById("usersContentGrid"),
+  platformConfigCard: document.getElementById("platformConfigCard"),
+  sirensAdminCard: document.getElementById("sirensAdminCard"),
+  userPagination: document.getElementById("userPagination"),
+  pagePrevButton: document.getElementById("pagePrevButton"),
+  pageNextButton: document.getElementById("pageNextButton"),
+  pageInfo: document.getElementById("pageInfo")
 };
 
 const ROLES = ["NEIGHBOR", "RESOLVER", "OPERATOR", "ADMIN"];
@@ -217,6 +230,86 @@ function currentControlCenterCode() {
   return (els.controlCenterInput.value || "CC-VINA").trim() || "CC-VINA";
 }
 
+function adminSectionCards() {
+  return {
+    users: [els.userFiltersCard, els.createCard, els.usersContentGrid],
+    platform: [els.platformConfigCard],
+    sirens: [els.sirensAdminCard]
+  };
+}
+
+function setAdminSection(section) {
+  state.activeAdminSection = section || "users";
+  const cards = adminSectionCards();
+  Object.entries(cards).forEach(([key, nodes]) => {
+    nodes.forEach((node) => {
+      if (!node) return;
+      if (key === state.activeAdminSection) {
+        if (node.id === "createCard" && !node.dataset.userOpened) node.hidden = true;
+        else node.hidden = false;
+      } else {
+        node.hidden = true;
+      }
+    });
+  });
+
+  document.querySelectorAll(".admin-tab").forEach((button) => {
+    button.classList.toggle("active", button.dataset.section === state.activeAdminSection);
+  });
+}
+
+function setupAdminSections() {
+  document.querySelectorAll(".admin-tab").forEach((button) => {
+    button.addEventListener("click", () => setAdminSection(button.dataset.section || "users"));
+  });
+  setAdminSection("users");
+}
+
+function updateSirenPolicyUi() {
+  const sirensEnabled = boolValue("cfgSirens");
+  [
+    "cfgSirenAuto",
+    "cfgSirenManual",
+    "cfgSirenMode",
+    "cfgSirenDefaultDuration",
+    "cfgSirenMaxDuration",
+    "cfgSirenCooldown",
+    "saveSirenButton"
+  ].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.disabled = !sirensEnabled;
+  });
+
+  document.querySelectorAll("[data-siren-policy]").forEach((node) => {
+    node.classList.toggle("disabled-pane", !sirensEnabled);
+  });
+
+  if (!sirensEnabled) {
+    setBool("cfgSirenAuto", false);
+    setBool("cfgSirenManual", false);
+  }
+}
+
+function updateVoicePolicyUi() {
+  const voiceEnabled = boolValue("cfgSecureVoice");
+  ["cfgVoiceRecording", "cfgVoiceSupervision", "cfgVoiceExpires", "cfgVoiceMax"].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.disabled = !voiceEnabled;
+  });
+  document.querySelectorAll("[data-voice-policy]").forEach((node) => {
+    node.classList.toggle("disabled-pane", !voiceEnabled);
+  });
+  if (!voiceEnabled) {
+    setBool("cfgVoiceRecording", false);
+    setBool("cfgVoiceSupervision", false);
+  }
+}
+
+function updatePolicyDependencies() {
+  updateSirenPolicyUi();
+  updateVoicePolicyUi();
+}
+
 function boolValue(id) {
   return document.getElementById(id)?.checked === true;
 }
@@ -293,9 +386,13 @@ function renderPlatformSettings(settings = {}) {
   document.getElementById("cfgDedupRadius").value = ip.dedup_radius_meters ?? 120;
   document.getElementById("cfgDedupWindow").value = ip.dedup_window_minutes ?? 120;
   document.getElementById("cfgResolverGpsAge").value = rp.max_location_age_seconds ?? 180;
+  updatePolicyDependencies();
 }
 
 function collectPlatformSettings() {
+  const sirensEnabled = boolValue("cfgSirens");
+  const voiceEnabled = boolValue("cfgSecureVoice");
+
   return {
     features: {
       mobile_app_enabled: boolValue("cfgMobileApp"),
@@ -308,16 +405,16 @@ function collectPlatformSettings() {
     },
     siren_policy: {
       activation_mode: document.getElementById("cfgSirenMode").value,
-      auto_activate_on_ticket: boolValue("cfgSirenAuto"),
-      operator_manual_control_enabled: boolValue("cfgSirenManual"),
+      auto_activate_on_ticket: sirensEnabled && boolValue("cfgSirenAuto"),
+      operator_manual_control_enabled: sirensEnabled && boolValue("cfgSirenManual"),
       default_duration_seconds: numberValue("cfgSirenDefaultDuration", 60),
       max_duration_seconds: numberValue("cfgSirenMaxDuration", 180),
       cooldown_seconds: numberValue("cfgSirenCooldown", 120),
       auto_categories: ["FIRE", "SECURITY"]
     },
     voice_policy: {
-      recording_enabled: boolValue("cfgVoiceRecording"),
-      supervision_enabled: boolValue("cfgVoiceSupervision"),
+      recording_enabled: voiceEnabled && boolValue("cfgVoiceRecording"),
+      supervision_enabled: voiceEnabled && boolValue("cfgVoiceSupervision"),
       expires_minutes: numberValue("cfgVoiceExpires", 15),
       max_call_minutes: numberValue("cfgVoiceMax", 30)
     },
@@ -514,6 +611,7 @@ async function loadUsers() {
     }
 
     state.users = data.users || [];
+    state.usersPage = 1;
     renderUsers();
     setConnection(true);
 
@@ -528,26 +626,45 @@ async function loadUsers() {
 }
 
 function renderUsers() {
-  els.summaryLabel.textContent = `${state.users.length} usuario(s)`;
+  const total = state.users.length;
+  const pageSize = state.usersPageSize || 10;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  state.usersPage = Math.min(Math.max(1, state.usersPage || 1), totalPages);
+  const start = (state.usersPage - 1) * pageSize;
+  const pageUsers = state.users.slice(start, start + pageSize);
 
-  if (!state.users.length) {
+  els.summaryLabel.textContent = `${total} usuario(s)`;
+
+  if (!total) {
     els.usersList.innerHTML = `<div class="empty-state">No hay usuarios para los filtros seleccionados.</div>`;
-    return;
+  } else {
+    els.usersList.innerHTML = pageUsers
+      .map(user => `
+        <div class="user-row ${state.selectedUserId === user.id ? "active" : ""}" onclick="selectUser('${escapeHtml(user.id)}')">
+          <div>
+            <div class="user-name">${escapeHtml(user.full_name || "Sin nombre")}</div>
+            <div class="user-meta">📞 ${escapeHtml(user.phone || "-")} · ${escapeHtml(user.declared_address || "Sin dirección")}</div>
+            <div class="user-meta">Tickets: ${user.tickets_count || 0} · Último: ${formatDate(user.last_ticket_at)}</div>
+          </div>
+          <div class="badges">${userBadges(user)}</div>
+        </div>
+      `)
+      .join("");
   }
 
-  els.usersList.innerHTML = state.users
-    .map(user => `
-      <div class="user-row ${state.selectedUserId === user.id ? "active" : ""}" onclick="selectUser('${escapeHtml(user.id)}')">
-        <div>
-          <div class="user-name">${escapeHtml(user.full_name || "Sin nombre")}</div>
-          <div class="user-meta">📞 ${escapeHtml(user.phone || "-")} · ${escapeHtml(user.declared_address || "Sin dirección")}</div>
-          <div class="user-meta">Tickets: ${user.tickets_count || 0} · Último: ${formatDate(user.last_ticket_at)}</div>
-        </div>
-        <div class="badges">${userBadges(user)}</div>
-      </div>
-    `)
-    .join("");
+  if (els.userPagination) {
+    els.userPagination.hidden = total <= pageSize;
+  }
+  if (els.pageInfo) {
+    const end = total ? Math.min(total, start + pageUsers.length) : 0;
+    els.pageInfo.textContent = total
+      ? `Página ${state.usersPage} de ${totalPages} · ${start + 1}-${end} de ${total}`
+      : "Sin usuarios";
+  }
+  if (els.pagePrevButton) els.pagePrevButton.disabled = state.usersPage <= 1;
+  if (els.pageNextButton) els.pageNextButton.disabled = state.usersPage >= totalPages;
 }
+
 
 window.selectUser = async function selectUser(userId) {
   state.selectedUserId = userId;
@@ -1012,11 +1129,14 @@ els.pendingButton.addEventListener("click", () => {
 });
 
 els.toggleCreateButton.addEventListener("click", () => {
+  els.createCard.dataset.userOpened = "true";
+  setAdminSection("users");
   els.createCard.hidden = false;
   window.scrollTo({ top: els.createCard.offsetTop - 80, behavior: "smooth" });
 });
 
 els.closeCreateButton.addEventListener("click", () => {
+  delete els.createCard.dataset.userOpened;
   els.createCard.hidden = true;
 });
 
@@ -1054,5 +1174,20 @@ els.searchInput.addEventListener("input", () => {
   searchTimer = setTimeout(loadUsers, 400);
 });
 
+els.pagePrevButton?.addEventListener("click", () => {
+  state.usersPage = Math.max(1, (state.usersPage || 1) - 1);
+  renderUsers();
+});
+
+els.pageNextButton?.addEventListener("click", () => {
+  state.usersPage = (state.usersPage || 1) + 1;
+  renderUsers();
+});
+
+["cfgSirens", "cfgSecureVoice"].forEach((id) => {
+  document.getElementById(id)?.addEventListener("change", updatePolicyDependencies);
+});
+
+setupAdminSections();
 localStorage.removeItem("sos_admin_token");
 checkStoredSession();

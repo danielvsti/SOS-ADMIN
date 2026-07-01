@@ -35,7 +35,12 @@
   </section>
 
   <main class="layout" id="appView" hidden>
-    <section class="card filters-card">
+    <nav class="admin-tabs" id="adminTabs" aria-label="Secciones administración">
+      <button class="admin-tab active" type="button" data-section="users">Usuarios municipales</button>
+      <button class="admin-tab" type="button" data-section="platform">Configuración plataforma</button>
+      <button class="admin-tab" type="button" data-section="sirens">Sirenas</button>
+    </nav>
+    <section class="card filters-card" id="userFiltersCard">
       <div class="section-title">Control municipal</div>
       <div class="filters-grid">
         <label>
@@ -107,7 +112,7 @@
           </div>
         </div>
 
-        <div class="settings-pane">
+        <div class="settings-pane" data-siren-policy>
           <h3>Sirenas</h3>
           <label class="check-row"><input id="cfgSirenAuto" type="checkbox" /> Activar sirenas automáticamente al crear ticket</label>
           <label class="check-row"><input id="cfgSirenManual" type="checkbox" /> Permitir activación manual por operador</label>
@@ -125,8 +130,9 @@
           </div>
         </div>
 
-        <div class="settings-pane">
+        <div class="settings-pane" data-voice-policy>
           <h3>Llamadas seguras</h3>
+          <p class="muted small-note">Si se deshabilitan, las apps ocultan botones de llamada y solo permiten texto, audio o video como evidencia del ticket.</p>
           <label class="check-row"><input id="cfgVoiceRecording" type="checkbox" /> Grabar llamadas</label>
           <label class="check-row"><input id="cfgVoiceSupervision" type="checkbox" /> Supervisión WA-Center</label>
           <div class="edit-grid one-col">
@@ -284,10 +290,15 @@
       </div>
     </section>
 
-    <section class="content-grid">
+    <section class="content-grid" id="usersContentGrid">
       <section class="card list-card">
         <div class="section-title">Usuarios registrados</div>
         <div id="usersList" class="users-list"></div>
+        <div id="userPagination" class="pagination" hidden>
+          <button id="pagePrevButton" class="secondary-button" type="button">Anterior</button>
+          <span id="pageInfo">Página 1</span>
+          <button id="pageNextButton" class="secondary-button" type="button">Siguiente</button>
+        </div>
       </section>
 
       <aside class="card detail-card" id="detailCard">
