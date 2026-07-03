@@ -68,7 +68,7 @@ const els = {
   pageInfo: document.getElementById("pageInfo")
 };
 
-const ROLES = ["NEIGHBOR", "RESOLVER", "OPERATOR", "ADMIN"];
+const ROLES = ["NEIGHBOR", "RESOLVER", "OPERATOR", "ADMIN", "SUPER_ADMIN"];
 const NOTIFIABLE_CATEGORIES = [
   { code: "FIRE", label: "Incendio" },
   { code: "TRAFFIC_ACCIDENT", label: "Accidente tránsito" },
@@ -79,6 +79,11 @@ const NOTIFIABLE_CATEGORIES = [
   { code: "OTHER", label: "Otro" }
 ];
 const BLOCKED_NEARBY_CATEGORIES = new Set(["VIF", "VIF_SILENT", "SILENT", "SILENT_SOS"]);
+
+function roleOptions() {
+  return isSuperAdmin() ? ROLES : ROLES.filter((role) => role !== "SUPER_ADMIN");
+}
+
 const VALIDATION_STATUSES = [
   "PENDING_VERIFICATION",
   "PROVISIONAL_ACTIVE",
@@ -118,13 +123,25 @@ function showLogin(message = "") {
   setConnection(false);
 }
 
+function isSuperAdmin() {
+  return String(state.sessionUser?.role || "").toUpperCase() === "SUPER_ADMIN";
+}
+
 function showApp(user) {
   state.sessionUser = user || state.sessionUser;
   els.loginView.hidden = true;
   els.appView.hidden = false;
   els.sessionUser.hidden = false;
   els.logoutButton.hidden = false;
-  els.sessionUser.textContent = `${state.sessionUser?.full_name || "ADMIN"} · ${state.sessionUser?.role || "ADMIN"}`;
+  els.sessionUser.textContent = `${state.sessionUser?.full_name || "ADMIN"} · ${state.sessionUser?.role || "ADMIN"} · ${state.sessionUser?.control_center_code || ""}`;
+
+  if (state.sessionUser?.control_center_code && !isSuperAdmin()) {
+    els.controlCenterInput.value = state.sessionUser.control_center_code;
+    els.controlCenterInput.readOnly = true;
+    els.controlCenterInput.title = "Centro asignado por sesión. Solo SUPER_ADMIN puede cambiarlo.";
+  } else if (state.sessionUser?.control_center_code && !els.controlCenterInput.value) {
+    els.controlCenterInput.value = state.sessionUser.control_center_code;
+  }
 }
 
 async function panelLogin() {
@@ -183,8 +200,8 @@ async function checkStoredSession() {
       throw new Error(data.message || "Sesión inválida");
     }
 
-    if (data.user.role !== "ADMIN") {
-      throw new Error("Este panel requiere rol ADMIN.");
+    if (!["ADMIN", "SUPER_ADMIN"].includes(data.user.role)) {
+      throw new Error("Este panel requiere rol ADMIN o SUPER_ADMIN.");
     }
 
     showApp(data.user);
@@ -246,7 +263,10 @@ function shortId(id) {
 }
 
 function currentControlCenterCode() {
-  return (els.controlCenterInput.value || "CC-VINA").trim() || "CC-VINA";
+  if (!isSuperAdmin() && state.sessionUser?.control_center_code) {
+    return String(state.sessionUser.control_center_code).trim().toUpperCase();
+  }
+  return (els.controlCenterInput.value || state.sessionUser?.control_center_code || "CC-VINA").trim().toUpperCase() || "CC-VINA";
 }
 
 function adminSectionCards() {
@@ -741,7 +761,7 @@ function userBadges(user) {
 
 function buildUsersUrl() {
   const params = new URLSearchParams();
-  params.set("control_center_code", els.controlCenterInput.value.trim() || "CC-VINA");
+  params.set("control_center_code", currentControlCenterCode());
   params.set("limit", "300");
 
   if (els.roleFilter.value !== "ALL") {
@@ -929,7 +949,7 @@ function renderDetail() {
       <h3>Rol operacional</h3>
       <div class="toolbar">
         <select id="roleSelect">
-          ${ROLES.map(role => `<option value="${role}" ${role === user.role ? "selected" : ""}>${role}</option>`).join("")}
+          ${roleOptions().map(role => `<option value="${role}" ${role === user.role ? "selected" : ""}>${role}</option>`).join("")}
         </select>
         <button onclick="saveRole()">Cambiar rol</button>
       </div>
@@ -1091,7 +1111,7 @@ function getCreateFormPayload() {
   }
 
   return {
-    control_center_code: els.controlCenterInput.value.trim() || "CC-VINA",
+    control_center_code: currentControlCenterCode(),
     full_name: document.getElementById("newFullName").value.trim(),
     phone: document.getElementById("newPhone").value.trim(),
     role: document.getElementById("newRole").value,
@@ -1189,7 +1209,7 @@ function parseBulkUsers(text) {
     const finalRole = ROLES.includes(cleanRole) ? cleanRole : "RESOLVER";
 
     users.push({
-      control_center_code: els.controlCenterInput.value.trim() || "CC-VINA",
+      control_center_code: currentControlCenterCode(),
       full_name,
       phone,
       role: finalRole,
