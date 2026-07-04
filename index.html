@@ -38,6 +38,7 @@
     <nav class="admin-tabs" id="adminTabs" aria-label="Secciones administración">
       <button class="admin-tab active" type="button" data-section="users"><span>👥</span> Usuarios</button>
       <button class="admin-tab" type="button" data-section="platform"><span>⚙️</span> Configuración plataforma</button>
+      <button class="admin-tab" type="button" data-section="branding"><span>🏛️</span> Branding municipal</button>
       <button class="admin-tab" type="button" data-section="sirens"><span>📣</span> Sirenas</button>
       <button class="admin-tab" type="button" data-section="devices"><span>🆘</span> Botones SOS físicos</button>
     </nav>
@@ -97,11 +98,16 @@
           <h3>Funcionalidades</h3>
           <label class="check-row"><input id="cfgMobileApp" type="checkbox" /> App Vecino habilitada</label>
           <label class="check-row"><input id="cfgResolverApp" type="checkbox" /> App Resolutor habilitada</label>
-          <label class="check-row"><input id="cfgPhysicalButtons" type="checkbox" /> Botones SOS físicos habilitados</label>
           <label class="check-row"><input id="cfgSirens" type="checkbox" /> Sirenas habilitadas</label>
           <label class="check-row"><input id="cfgSecureVoice" type="checkbox" /> Llamadas seguras habilitadas</label>
           <label class="check-row"><input id="cfgMultiReports" type="checkbox" /> Agrupar múltiples reportes ciudadanos</label>
           <label class="check-row"><input id="cfgResolverAutoAssign" type="checkbox" /> Autoasignación de resolutores</label>
+        </div>
+
+        <div class="settings-pane" data-physical-buttons-policy>
+          <h3>Botones SOS físicos</h3>
+          <p class="muted small-note">Dispositivos físicos de emergencia instalados en la comuna (pulsadores, pendantes u otros) que generan un ticket directo sin pasar por la app.</p>
+          <label class="check-row"><input id="cfgPhysicalButtons" type="checkbox" /> Botones SOS físicos habilitados</label>
         </div>
 
         <div class="settings-pane">
@@ -161,6 +167,62 @@
       <div class="toolbar">
         <button id="saveSettingsButton" class="success-button">Guardar configuración plataforma</button>
         <span id="settingsStatus" class="summary">-</span>
+      </div>
+    </section>
+
+    <section class="card platform-card" id="brandingAdminCard" hidden>
+      <div class="create-card-header">
+        <div>
+          <div class="section-title">Branding del Centro de Control</div>
+          <p>Define la identidad visual municipal que verá el operador en el mapa. El logo municipal es la marca principal; el logo de producto queda como respaldo discreto.</p>
+        </div>
+        <button id="reloadBrandingButton" class="secondary-button">Recargar branding</button>
+      </div>
+
+      <div class="branding-layout">
+        <div class="settings-pane">
+          <h3>Logo municipal</h3>
+          <p class="muted small-note">Recomendado: PNG/WebP transparente, ancho mínimo 320 px. Para demo se puede guardar como imagen embebida; para producción conviene usar URL pública/CDN.</p>
+          <label>Subir logo municipal
+            <input id="municipalityLogoFile" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" />
+          </label>
+          <label>O pegar URL https
+            <input id="municipalityLogoUrlInput" placeholder="https://.../logo-municipal.png" />
+          </label>
+          <div class="brand-preview-card">
+            <div class="brand-preview-title">Preview municipal</div>
+            <img id="municipalityLogoPreview" alt="Logo municipal" />
+          </div>
+        </div>
+
+        <div class="settings-pane">
+          <h3>Logo producto / proveedor</h3>
+          <p class="muted small-note">Opcional. Se verá de forma secundaria en el mapa operacional.</p>
+          <label>Subir logo producto
+            <input id="productLogoFile" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" />
+          </label>
+          <label>O pegar URL https
+            <input id="productLogoUrlInput" placeholder="https://.../logo-sos.png" />
+          </label>
+          <div class="brand-preview-card compact">
+            <div class="brand-preview-title">Preview producto</div>
+            <img id="productLogoPreview" alt="Logo producto" />
+          </div>
+        </div>
+
+        <div class="settings-pane">
+          <h3>Colores</h3>
+          <div class="edit-grid one-col">
+            <label>Color principal<input id="brandPrimaryColorInput" type="color" value="#0f5f8f" /></label>
+            <label>Color secundario<input id="brandSecondaryColorInput" type="color" value="#16a34a" /></label>
+          </div>
+          <div class="hint-text">Estos colores se usarán progresivamente en encabezados, botones y acentos visuales.</div>
+        </div>
+      </div>
+
+      <div class="toolbar">
+        <button id="saveBrandingButton" class="success-button">Guardar branding municipal</button>
+        <span id="brandingStatus" class="summary">-</span>
       </div>
     </section>
 

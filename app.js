@@ -8,6 +8,7 @@ const state = {
   detail: null,
   sessionUser: null,
   platformSettings: null,
+  branding: null,
   sirens: [],
   physicalDevices: [],
   usersPage: 1,
@@ -46,6 +47,18 @@ const els = {
   reloadSettingsButton: document.getElementById("reloadSettingsButton"),
   saveSettingsButton: document.getElementById("saveSettingsButton"),
   settingsStatus: document.getElementById("settingsStatus"),
+  brandingAdminCard: document.getElementById("brandingAdminCard"),
+  reloadBrandingButton: document.getElementById("reloadBrandingButton"),
+  saveBrandingButton: document.getElementById("saveBrandingButton"),
+  brandingStatus: document.getElementById("brandingStatus"),
+  municipalityLogoFile: document.getElementById("municipalityLogoFile"),
+  municipalityLogoUrlInput: document.getElementById("municipalityLogoUrlInput"),
+  municipalityLogoPreview: document.getElementById("municipalityLogoPreview"),
+  productLogoFile: document.getElementById("productLogoFile"),
+  productLogoUrlInput: document.getElementById("productLogoUrlInput"),
+  productLogoPreview: document.getElementById("productLogoPreview"),
+  brandPrimaryColorInput: document.getElementById("brandPrimaryColorInput"),
+  brandSecondaryColorInput: document.getElementById("brandSecondaryColorInput"),
   reloadSirensButton: document.getElementById("reloadSirensButton"),
   saveSirenButton: document.getElementById("saveSirenButton"),
   clearSirenButton: document.getElementById("clearSirenButton"),
@@ -172,6 +185,7 @@ async function panelLogin() {
     setSession(data.token, data.user);
     showApp(data.user);
     await loadPlatformSettings();
+    await loadBranding();
     await loadSirens();
     await loadPhysicalDevices();
     await loadUsers();
@@ -206,6 +220,7 @@ async function checkStoredSession() {
 
     showApp(data.user);
     await loadPlatformSettings();
+    await loadBranding();
     await loadSirens();
     await loadPhysicalDevices();
     await loadUsers();
@@ -273,6 +288,7 @@ function adminSectionCards() {
   return {
     users: [els.userFiltersCard, els.createCard, els.usersContentGrid],
     platform: [els.platformConfigCard],
+    branding: [els.brandingAdminCard],
     sirens: [els.sirensAdminCard],
     devices: [els.physicalDevicesAdminCard]
   };
@@ -533,6 +549,97 @@ async function savePlatformSettings() {
     toast(error.message);
   } finally {
     els.saveSettingsButton.disabled = false;
+  }
+}
+
+
+function setBrandPreview(img, value) {
+  if (!img) return;
+  if (value) {
+    img.src = value;
+    img.hidden = false;
+  } else {
+    img.removeAttribute("src");
+    img.hidden = true;
+  }
+}
+
+function readImageAsDataUrl(fileInput) {
+  const file = fileInput?.files?.[0];
+  if (!file) return Promise.resolve(null);
+  if (!/^image\//.test(file.type || "")) {
+    return Promise.reject(new Error("El archivo debe ser una imagen"));
+  }
+  if (file.size > 1024 * 1024) {
+    return Promise.reject(new Error("El logo pesa más de 1 MB. Usa una versión más liviana o pega una URL https."));
+  }
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error("No fue posible leer el logo"));
+    reader.readAsDataURL(file);
+  });
+}
+
+function renderBranding(controlCenter = {}) {
+  state.branding = controlCenter;
+  if (els.municipalityLogoUrlInput) els.municipalityLogoUrlInput.value = controlCenter.municipality_logo_url || "";
+  if (els.productLogoUrlInput) els.productLogoUrlInput.value = controlCenter.product_logo_url || "";
+  if (els.brandPrimaryColorInput) els.brandPrimaryColorInput.value = controlCenter.brand_primary_color || "#0f5f8f";
+  if (els.brandSecondaryColorInput) els.brandSecondaryColorInput.value = controlCenter.brand_secondary_color || "#16a34a";
+  setBrandPreview(els.municipalityLogoPreview, controlCenter.municipality_logo_url);
+  setBrandPreview(els.productLogoPreview, controlCenter.product_logo_url);
+}
+
+async function loadBranding() {
+  if (!getSessionToken()) return;
+  const code = currentControlCenterCode();
+  try {
+    if (els.brandingStatus) els.brandingStatus.textContent = "Cargando branding...";
+    const res = await fetch(`${API}/admin/control-centers/${encodeURIComponent(code)}/branding`, { headers: apiHeaders() });
+    const data = await res.json();
+    if (!res.ok || data.status !== "ok") throw new Error(data.message || "No fue posible cargar branding");
+    renderBranding(data.control_center);
+    if (els.brandingStatus) els.brandingStatus.textContent = `Branding cargado · ${data.control_center?.name || code}`;
+  } catch (error) {
+    console.error(error);
+    if (els.brandingStatus) els.brandingStatus.textContent = error.message;
+    toast(error.message);
+  }
+}
+
+async function saveBranding() {
+  const code = currentControlCenterCode();
+  try {
+    if (els.saveBrandingButton) els.saveBrandingButton.disabled = true;
+    if (els.brandingStatus) els.brandingStatus.textContent = "Guardando branding...";
+
+    const uploadedMunicipalityLogo = await readImageAsDataUrl(els.municipalityLogoFile);
+    const uploadedProductLogo = await readImageAsDataUrl(els.productLogoFile);
+
+    const payload = {
+      municipality_logo_url: uploadedMunicipalityLogo || els.municipalityLogoUrlInput?.value?.trim() || "",
+      product_logo_url: uploadedProductLogo || els.productLogoUrlInput?.value?.trim() || "",
+      brand_primary_color: els.brandPrimaryColorInput?.value || "#0f5f8f",
+      brand_secondary_color: els.brandSecondaryColorInput?.value || "#16a34a"
+    };
+
+    const res = await fetch(`${API}/admin/control-centers/${encodeURIComponent(code)}/branding`, {
+      method: "PUT",
+      headers: apiHeaders(),
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (!res.ok || data.status !== "ok") throw new Error(data.message || "No fue posible guardar branding");
+    renderBranding(data.control_center);
+    if (els.brandingStatus) els.brandingStatus.textContent = "Branding guardado";
+    toast("Branding municipal guardado");
+  } catch (error) {
+    console.error(error);
+    if (els.brandingStatus) els.brandingStatus.textContent = error.message;
+    toast(error.message);
+  } finally {
+    if (els.saveBrandingButton) els.saveBrandingButton.disabled = false;
   }
 }
 
@@ -1344,6 +1451,14 @@ els.loginPhoneInput.addEventListener("keydown", event => {
 els.logoutButton.addEventListener("click", logout);
 els.reloadSettingsButton.addEventListener("click", loadPlatformSettings);
 els.saveSettingsButton.addEventListener("click", savePlatformSettings);
+els.reloadBrandingButton?.addEventListener("click", loadBranding);
+els.saveBrandingButton?.addEventListener("click", saveBranding);
+els.municipalityLogoFile?.addEventListener("change", async () => {
+  try { setBrandPreview(els.municipalityLogoPreview, await readImageAsDataUrl(els.municipalityLogoFile)); } catch (error) { toast(error.message); }
+});
+els.productLogoFile?.addEventListener("change", async () => {
+  try { setBrandPreview(els.productLogoPreview, await readImageAsDataUrl(els.productLogoFile)); } catch (error) { toast(error.message); }
+});
 els.reloadSirensButton.addEventListener("click", loadSirens);
 els.saveSirenButton.addEventListener("click", saveSiren);
 els.clearSirenButton.addEventListener("click", clearSirenForm);
@@ -1362,6 +1477,7 @@ els.nearbyCategoryChips?.addEventListener("click", (event) => {
 
 els.controlCenterInput.addEventListener("change", async () => {
   await loadPlatformSettings();
+  await loadBranding();
   await loadSirens();
   await loadPhysicalDevices();
   await loadUsers();
