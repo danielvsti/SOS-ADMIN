@@ -69,6 +69,7 @@ const els = {
   devicesList: document.getElementById("devicesList"),
   physicalDevicesAdminCard: document.getElementById("physicalDevicesAdminCard"),
   nearbyCategoryChips: document.getElementById("nearbyCategoryChips"),
+  neighborCategoryList: document.getElementById("neighborCategoryList"),
   adminTabs: document.getElementById("adminTabs"),
   userFiltersCard: document.getElementById("userFiltersCard"),
   createCard: document.getElementById("createCard"),
@@ -92,6 +93,114 @@ const NOTIFIABLE_CATEGORIES = [
   { code: "OTHER", label: "Otro" }
 ];
 const BLOCKED_NEARBY_CATEGORIES = new Set(["VIF", "VIF_SILENT", "SILENT", "SILENT_SOS"]);
+
+const DEFAULT_NEIGHBOR_EMERGENCY_CATEGORIES = [
+  { type: "SOS_MANUAL", title: "SOS General", icon: "🚨", color: "#ef4444", priority: 1, enabled: true, order: 10 },
+  { type: "MEDICAL", title: "Médica", icon: "🚑", color: "#22c55e", priority: 1, enabled: true, order: 20 },
+  { type: "FIRE", title: "Incendio", icon: "🔥", color: "#f97316", priority: 1, enabled: true, order: 30 },
+  { type: "SECURITY", title: "Seguridad", icon: "👮", color: "#8b5cf6", priority: 2, enabled: true, order: 40 },
+  { type: "VIF", title: "VIF", icon: "🏠", color: "#a855f7", priority: 1, enabled: true, order: 50, sensitive: true },
+  { type: "TRAFFIC_ACCIDENT", title: "Accidente", icon: "🚗", color: "#3b82f6", priority: 2, enabled: true, order: 60 },
+  { type: "URBAN_RISK", title: "Riesgo", icon: "⚠️", color: "#eab308", priority: 3, enabled: true, order: 70 },
+  { type: "OTHER", title: "Otro", icon: "📝", color: "#64748b", priority: 3, enabled: true, order: 80 }
+];
+
+let neighborCategoryDraft = [];
+
+function normalizeNeighborCategories(rawCategories = []) {
+  const base = new Map(DEFAULT_NEIGHBOR_EMERGENCY_CATEGORIES.map(category => [category.type, { ...category }]));
+  const received = Array.isArray(rawCategories) ? rawCategories : [];
+
+  received.forEach((raw, index) => {
+    if (!raw || typeof raw !== "object") return;
+    const type = String(raw.type || raw.alert_type || raw.code || "").trim().toUpperCase();
+    if (!type) return;
+    const fallback = base.get(type) || {};
+    const priority = Number(raw.priority);
+    const order = Number(raw.order);
+    const title = String(raw.title_override || raw.title || raw.label || fallback.title || type).trim();
+    const catalogTitle = String(raw.catalog_title || raw.base_title || raw.default_title || raw.title || fallback.title || title).trim();
+
+    base.set(type, {
+      ...fallback,
+      ...raw,
+      type,
+      title,
+      catalog_title: catalogTitle,
+      icon: String(raw.icon || fallback.icon || "🆘").trim(),
+      color: String(raw.color || fallback.color || "#2563eb").trim(),
+      priority: Number.isFinite(priority) ? priority : Number(fallback.priority || 3),
+      enabled: raw.enabled !== false,
+      order: Number.isFinite(order) ? order : Number(fallback.order || ((index + 1) * 10)),
+      title_override: String(raw.title_override || "").trim()
+    });
+  });
+
+  const categories = Array.from(base.values()).sort((a, b) => Number(a.order || 999) - Number(b.order || 999));
+  if (!categories.some(category => category.enabled !== false)) {
+    const sos = categories.find(category => category.type === "SOS_MANUAL") || categories[0];
+    if (sos) sos.enabled = true;
+  }
+  return categories;
+}
+
+function categoryDisplayTitle(category) {
+  return String(category.title_override || category.title || category.catalog_title || category.type || "").trim();
+}
+
+function renderNeighborCategories(categories = DEFAULT_NEIGHBOR_EMERGENCY_CATEGORIES) {
+  if (!els.neighborCategoryList) return;
+  neighborCategoryDraft = normalizeNeighborCategories(categories);
+  els.neighborCategoryList.innerHTML = neighborCategoryDraft.map(category => {
+    const displayTitle = categoryDisplayTitle(category);
+    const catalogTitle = category.catalog_title || category.title || category.type;
+    const aliasValue = category.title_override || "";
+    return `
+      <label class="neighbor-category-row">
+        <input type="checkbox" data-neighbor-category-enabled="${escapeHtml(category.type)}" ${category.enabled !== false ? "checked" : ""}>
+        <span class="neighbor-category-label">
+          <span class="emoji">${escapeHtml(category.icon || "🆘")}</span>
+          <span>
+            <strong>${escapeHtml(displayTitle)}</strong>
+            <small>Catálogo: ${escapeHtml(catalogTitle)}</small>
+          </span>
+        </span>
+        <input class="neighbor-category-alias" type="text" value="${escapeHtml(aliasValue)}" placeholder="Nombre visible local" data-neighbor-category-alias="${escapeHtml(category.type)}" aria-label="Nombre visible local ${escapeHtml(displayTitle)}">
+        <input class="neighbor-category-order" type="number" min="1" max="999" value="${Number(category.order || 100)}" data-neighbor-category-order="${escapeHtml(category.type)}" aria-label="Orden ${escapeHtml(displayTitle)}">
+      </label>
+    `;
+  }).join("");
+}
+
+function collectNeighborCategories() {
+  if (!els.neighborCategoryList) return DEFAULT_NEIGHBOR_EMERGENCY_CATEGORIES;
+  const source = neighborCategoryDraft.length ? neighborCategoryDraft : DEFAULT_NEIGHBOR_EMERGENCY_CATEGORIES;
+  const categories = source.map(category => {
+    const enabledInput = els.neighborCategoryList.querySelector(`[data-neighbor-category-enabled="${category.type}"]`);
+    const aliasInput = els.neighborCategoryList.querySelector(`[data-neighbor-category-alias="${category.type}"]`);
+    const orderInput = els.neighborCategoryList.querySelector(`[data-neighbor-category-order="${category.type}"]`);
+    const order = Number(orderInput?.value);
+    const alias = String(aliasInput?.value || "").trim();
+    const catalogTitle = category.catalog_title || category.title || category.type;
+
+    return {
+      ...category,
+      catalog_title: catalogTitle,
+      title_override: alias,
+      title: alias || catalogTitle,
+      enabled: Boolean(enabledInput?.checked),
+      order: Number.isFinite(order) ? order : category.order
+    };
+  });
+
+  if (!categories.some(category => category.enabled)) {
+    const sos = categories.find(category => category.type === "SOS_MANUAL") || categories[0];
+    if (sos) sos.enabled = true;
+  }
+  return normalizeNeighborCategories(categories);
+}
+
+
 
 function roleOptions() {
   return isSuperAdmin() ? ROLES : ROLES.filter((role) => role !== "SUPER_ADMIN");
@@ -288,7 +397,6 @@ function adminSectionCards() {
   return {
     users: [els.userFiltersCard, els.createCard, els.usersContentGrid],
     platform: [els.platformConfigCard],
-    branding: [els.brandingAdminCard],
     sirens: [els.sirensAdminCard],
     devices: [els.physicalDevicesAdminCard]
   };
@@ -447,6 +555,7 @@ function renderPlatformSettings(settings = {}) {
   const np = settings.notification_policy || {};
   const ip = settings.incident_policy || {};
   const rp = settings.resolver_policy || {};
+  const neighborApp = settings.neighbor_app || {};
 
   setBool("cfgMobileApp", f.mobile_app_enabled !== false);
   setBool("cfgResolverApp", f.resolver_app_enabled !== false);
@@ -475,6 +584,7 @@ function renderPlatformSettings(settings = {}) {
   document.getElementById("cfgDedupRadius").value = ip.dedup_radius_meters ?? 120;
   document.getElementById("cfgDedupWindow").value = ip.dedup_window_minutes ?? 120;
   document.getElementById("cfgResolverGpsAge").value = rp.max_location_age_seconds ?? 180;
+  renderNeighborCategories(neighborApp.emergency_categories || DEFAULT_NEIGHBOR_EMERGENCY_CATEGORIES);
   updatePolicyDependencies();
 }
 
@@ -523,6 +633,9 @@ function collectPlatformSettings() {
       auto_assignment_enabled: boolValue("cfgResolverAutoAssign"),
       max_location_age_seconds: numberValue("cfgResolverGpsAge", 180),
       max_active_tickets: 1
+    },
+    neighbor_app: {
+      emergency_categories: collectNeighborCategories()
     }
   };
 }
