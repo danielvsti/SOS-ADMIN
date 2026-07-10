@@ -160,16 +160,26 @@ function renderNeighborCategories(categories = DEFAULT_NEIGHBOR_EMERGENCY_CATEGO
     const aliasValue = category.title_override || "";
     return `
       <label class="neighbor-category-row">
-        <input type="checkbox" data-neighbor-category-enabled="${escapeHtml(category.type)}" ${category.enabled !== false ? "checked" : ""}>
-        <span class="neighbor-category-label">
-          <span class="emoji">${escapeHtml(category.icon || "🆘")}</span>
-          <span>
-            <strong>${escapeHtml(displayTitle)}</strong>
-            <small>Catálogo: ${escapeHtml(catalogTitle)}</small>
+        <span class="neighbor-category-topline">
+          <input class="neighbor-category-toggle" type="checkbox" data-neighbor-category-enabled="${escapeHtml(category.type)}" ${category.enabled !== false ? "checked" : ""}>
+          <span class="neighbor-category-label">
+            <span class="emoji">${escapeHtml(category.icon || "🆘")}</span>
+            <span>
+              <strong>${escapeHtml(displayTitle)}</strong>
+              <small>Categoría base: ${escapeHtml(catalogTitle)}</small>
+            </span>
           </span>
         </span>
-        <input class="neighbor-category-alias" type="text" value="${escapeHtml(aliasValue)}" placeholder="Nombre visible local" data-neighbor-category-alias="${escapeHtml(category.type)}" aria-label="Nombre visible local ${escapeHtml(displayTitle)}">
-        <input class="neighbor-category-order" type="number" min="1" max="999" value="${Number(category.order || 100)}" data-neighbor-category-order="${escapeHtml(category.type)}" aria-label="Orden ${escapeHtml(displayTitle)}">
+        <span class="neighbor-category-fields">
+          <span class="neighbor-category-field neighbor-category-field-alias">
+            <span>Nombre visible local</span>
+            <input class="neighbor-category-alias" type="text" value="${escapeHtml(aliasValue)}" placeholder="Opcional" data-neighbor-category-alias="${escapeHtml(category.type)}" aria-label="Nombre visible local ${escapeHtml(displayTitle)}">
+          </span>
+          <span class="neighbor-category-field neighbor-category-field-order">
+            <span>Orden</span>
+            <input class="neighbor-category-order" type="number" min="1" max="999" value="${Number(category.order || 100)}" data-neighbor-category-order="${escapeHtml(category.type)}" aria-label="Orden ${escapeHtml(displayTitle)}">
+          </span>
+        </span>
       </label>
     `;
   }).join("");
