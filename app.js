@@ -108,20 +108,23 @@ const DEFAULT_NEIGHBOR_EMERGENCY_CATEGORIES = [
 let neighborCategoryDraft = [];
 
 function normalizeNeighborCategories(rawCategories = []) {
-  const base = new Map(DEFAULT_NEIGHBOR_EMERGENCY_CATEGORIES.map(category => [category.type, { ...category }]));
-  const received = Array.isArray(rawCategories) ? rawCategories : [];
+  const received = Array.isArray(rawCategories)
+    ? rawCategories.filter((raw) => raw && typeof raw === "object")
+    : [];
+  const source = received.length ? received : DEFAULT_NEIGHBOR_EMERGENCY_CATEGORIES;
+  const defaultsByType = new Map(DEFAULT_NEIGHBOR_EMERGENCY_CATEGORIES.map(category => [category.type, { ...category }]));
+  const byType = new Map();
 
-  received.forEach((raw, index) => {
-    if (!raw || typeof raw !== "object") return;
+  source.forEach((raw, index) => {
     const type = String(raw.type || raw.alert_type || raw.code || "").trim().toUpperCase();
     if (!type) return;
-    const fallback = base.get(type) || {};
+    const fallback = defaultsByType.get(type) || {};
     const priority = Number(raw.priority);
     const order = Number(raw.order);
     const title = String(raw.title_override || raw.title || raw.label || fallback.title || type).trim();
     const catalogTitle = String(raw.catalog_title || raw.base_title || raw.default_title || raw.title || fallback.title || title).trim();
 
-    base.set(type, {
+    byType.set(type, {
       ...fallback,
       ...raw,
       type,
@@ -136,10 +139,10 @@ function normalizeNeighborCategories(rawCategories = []) {
     });
   });
 
-  const categories = Array.from(base.values()).sort((a, b) => Number(a.order || 999) - Number(b.order || 999));
+  const categories = Array.from(byType.values()).sort((a, b) => Number(a.order || 999) - Number(b.order || 999));
   if (!categories.some(category => category.enabled !== false)) {
-    const sos = categories.find(category => category.type === "SOS_MANUAL") || categories[0];
-    if (sos) sos.enabled = true;
+    const firstAvailable = categories[0];
+    if (firstAvailable) firstAvailable.enabled = true;
   }
   return categories;
 }
