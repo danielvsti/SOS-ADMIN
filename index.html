@@ -28,9 +28,12 @@
       <label>Teléfono administrador
         <input id="loginPhoneInput" placeholder="+569XXXXXXXX" autocomplete="tel" />
       </label>
+      <label>Código OTP
+        <input id="loginCodeInput" inputmode="numeric" autocomplete="one-time-code" maxlength="8" placeholder="Ingresa el código recibido" />
+      </label>
       <button id="loginButton" class="success-button">Entrar</button>
       <div id="loginError" class="login-error"></div>
-      <div class="hint-text">Para demo, el acceso se valida por teléfono registrado. Más adelante conectamos OTP/WhatsApp.</div>
+      <div class="hint-text">Primero solicita el código. En producción se envía mediante Twilio Verify.</div>
     </div>
   </section>
 

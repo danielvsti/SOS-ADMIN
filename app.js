@@ -20,6 +20,7 @@ const els = {
   loginView: document.getElementById("loginView"),
   appView: document.getElementById("appView"),
   loginPhoneInput: document.getElementById("loginPhoneInput"),
+  loginCodeInput: document.getElementById("loginCodeInput"),
   loginButton: document.getElementById("loginButton"),
   loginError: document.getElementById("loginError"),
   sessionUser: document.getElementById("sessionUser"),
@@ -228,15 +229,19 @@ const VALIDATION_STATUSES = [
 ];
 
 function getSessionToken() {
-  return localStorage.getItem("sos_admin_session_token") || "";
+  return sessionStorage.getItem("sos_admin_session_token") || "";
 }
 
 function setSession(token, user) {
-  localStorage.setItem("sos_admin_session_token", token);
-  localStorage.setItem("sos_admin_session_user", JSON.stringify(user || {}));
+  sessionStorage.setItem("sos_admin_session_token", token);
+  sessionStorage.setItem("sos_admin_session_user", JSON.stringify(user || {}));
+  localStorage.removeItem("sos_admin_session_token");
+  localStorage.removeItem("sos_admin_session_user");
 }
 
 function clearSession() {
+  sessionStorage.removeItem("sos_admin_session_token");
+  sessionStorage.removeItem("sos_admin_session_user");
   localStorage.removeItem("sos_admin_session_token");
   localStorage.removeItem("sos_admin_session_user");
 }
@@ -281,6 +286,7 @@ function showApp(user) {
 
 async function panelLogin() {
   const phone = els.loginPhoneInput.value.trim();
+  const code = els.loginCodeInput.value.trim();
   els.loginError.textContent = "";
 
   if (!phone) {
@@ -290,18 +296,31 @@ async function panelLogin() {
 
   try {
     els.loginButton.disabled = true;
-    els.loginButton.textContent = "Entrando...";
+    els.loginButton.textContent = code ? "Validando..." : "Enviando código...";
 
     const res = await fetch(`${API}/auth/panel-login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ phone, panel_type: "ADMIN" })
+      body: JSON.stringify({
+        phone,
+        panel_type: "ADMIN",
+        code: code || undefined,
+        channel: SOS_CONFIG.DEMO_MODE ? "demo" : undefined
+      })
     });
 
     const data = await res.json();
 
     if (!res.ok || data.status !== "ok") {
       throw new Error(data.message || "No fue posible ingresar");
+    }
+
+    if (data.requires_verification) {
+      els.loginError.textContent = data.demo_code
+        ? `Código demo: ${data.demo_code}`
+        : `Código enviado por ${data.otp_channel || "SMS"}.`;
+      els.loginCodeInput.focus();
+      return;
     }
 
     setSession(data.token, data.user);
