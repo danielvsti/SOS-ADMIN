@@ -528,6 +528,9 @@ button:disabled {
   grid-column: span 2;
 }
 
+.qr-create-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;align-items:end;margin:18px 0}.qr-create-grid label{display:grid;gap:6px;font-weight:800}.qr-create-grid input{min-height:44px;border:1px solid #cbd5e1;border-radius:12px;padding:0 12px}.qr-points-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin-top:18px}.qr-point-card{border:1px solid #dbe4ef;border-radius:18px;padding:16px;background:#f8fafc}.qr-point-head{display:flex;justify-content:space-between;gap:10px}.qr-point-code{font-family:monospace;font-size:12px;color:#64748b;word-break:break-all}.qr-canvas{display:flex;justify-content:center;background:#fff;padding:12px;border-radius:14px;margin:12px 0}.qr-point-actions{display:flex;gap:8px;flex-wrap:wrap}.qr-metrics{display:flex;gap:12px;color:#475569;font-size:13px;margin:8px 0}
+@media(max-width:900px){.qr-create-grid{grid-template-columns:1fr 1fr}}@media(max-width:600px){.qr-create-grid{grid-template-columns:1fr}}
+
 .platform-branding-block {
   grid-column: 1 / -1;
   margin-top: 18px;

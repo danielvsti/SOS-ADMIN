@@ -11,6 +11,7 @@ const state = {
   branding: null,
   sirens: [],
   physicalDevices: [],
+  qrPoints: [],
   usersPage: 1,
   usersPageSize: 10,
   activeAdminSection: "users"
@@ -69,6 +70,9 @@ const els = {
   clearDeviceButton: document.getElementById("clearDeviceButton"),
   devicesList: document.getElementById("devicesList"),
   physicalDevicesAdminCard: document.getElementById("physicalDevicesAdminCard"),
+  qrAdminCard: document.getElementById("qrAdminCard"),
+  qrPointsList: document.getElementById("qrPointsList"),
+  qrStatus: document.getElementById("qrStatus"),
   nearbyCategoryChips: document.getElementById("nearbyCategoryChips"),
   neighborCategoryList: document.getElementById("neighborCategoryList"),
   adminTabs: document.getElementById("adminTabs"),
@@ -328,6 +332,7 @@ async function panelLogin() {
     await loadPlatformSettings();
     await loadBranding();
     await loadSirens();
+    await loadQrPoints();
     await loadPhysicalDevices();
     await loadUsers();
   } catch (error) {
@@ -363,6 +368,7 @@ async function checkStoredSession() {
     await loadPlatformSettings();
     await loadBranding();
     await loadSirens();
+    await loadQrPoints();
     await loadPhysicalDevices();
     await loadUsers();
   } catch (error) {
@@ -430,7 +436,8 @@ function adminSectionCards() {
     users: [els.userFiltersCard, els.createCard, els.usersContentGrid],
     platform: [els.platformConfigCard],
     sirens: [els.sirensAdminCard],
-    devices: [els.physicalDevicesAdminCard]
+    devices: [els.physicalDevicesAdminCard],
+    qr: [els.qrAdminCard]
   };
 }
 
@@ -588,6 +595,7 @@ function renderPlatformSettings(settings = {}) {
   const ip = settings.incident_policy || {};
   const rp = settings.resolver_policy || {};
   const neighborApp = settings.neighbor_app || {};
+  const operatorTools = settings.operator_tools || {};
 
   setBool("cfgMobileApp", f.mobile_app_enabled !== false);
   setBool("cfgResolverApp", f.resolver_app_enabled !== false);
@@ -617,6 +625,12 @@ function renderPlatformSettings(settings = {}) {
   document.getElementById("cfgDedupWindow").value = ip.dedup_window_minutes ?? 120;
   document.getElementById("cfgResolverGpsAge").value = rp.max_location_age_seconds ?? 180;
   renderNeighborCategories(neighborApp.emergency_categories || DEFAULT_NEIGHBOR_EMERGENCY_CATEGORIES);
+  const emergencyByKey = new Map((operatorTools.emergency_contacts || []).map(contact => [contact.key, contact]));
+  setBool("cfgOperatorDashboard", (operatorTools.dashboard_roles || []).includes("OPERATOR"));
+  document.getElementById("cfgEmergencyAmbulance").value = emergencyByKey.get("AMBULANCE")?.phone || "131";
+  document.getElementById("cfgEmergencyFire").value = emergencyByKey.get("FIRE_DEPARTMENT")?.phone || "132";
+  document.getElementById("cfgEmergencyPolice").value = emergencyByKey.get("POLICE")?.phone || "133";
+  document.getElementById("cfgEmergencyMunicipal").value = emergencyByKey.get("MUNICIPAL_SECURITY")?.phone || "";
   updatePolicyDependencies();
 }
 
@@ -666,10 +680,102 @@ function collectPlatformSettings() {
       max_location_age_seconds: numberValue("cfgResolverGpsAge", 180),
       max_active_tickets: 1
     },
+    operator_tools: {
+      dashboard_roles: boolValue("cfgOperatorDashboard") ? ["OPERATOR", "ADMIN", "SUPER_ADMIN"] : ["ADMIN", "SUPER_ADMIN"],
+      emergency_contacts: [
+        { key: "AMBULANCE", label: "Ambulancia / SAMU", phone: document.getElementById("cfgEmergencyAmbulance").value.trim(), icon: "🚑", enabled: true, order: 10 },
+        { key: "FIRE_DEPARTMENT", label: "Bomberos", phone: document.getElementById("cfgEmergencyFire").value.trim(), icon: "🚒", enabled: true, order: 20 },
+        { key: "POLICE", label: "Carabineros", phone: document.getElementById("cfgEmergencyPolice").value.trim(), icon: "🚓", enabled: true, order: 30 },
+        { key: "MUNICIPAL_SECURITY", label: "Seguridad Municipal", phone: document.getElementById("cfgEmergencyMunicipal").value.trim(), icon: "🛡️", enabled: Boolean(document.getElementById("cfgEmergencyMunicipal").value.trim()), order: 40 }
+      ]
+    },
     neighbor_app: {
       emergency_categories: collectNeighborCategories()
     }
   };
+}
+
+async function loadQrPoints() {
+  const code = currentControlCenterCode();
+  if (!els.qrPointsList) return;
+  try {
+    els.qrStatus.textContent = "Cargando puntos QR...";
+    const res = await fetch(`${API}/admin/control-centers/${encodeURIComponent(code)}/qr-points`, { headers: apiHeaders() });
+    const data = await res.json();
+    if (!res.ok || data.status !== "ok") throw new Error(data.message || "No fue posible cargar QR");
+    state.qrPoints = data.qr_points || [];
+    renderQrPoints();
+    els.qrStatus.textContent = `${state.qrPoints.length} puntos QR configurados`;
+  } catch (error) {
+    els.qrStatus.textContent = error.message;
+    els.qrPointsList.innerHTML = `<div class="empty-state">${escapeHtml(error.message)}</div>`;
+  }
+}
+
+function renderQrPoints() {
+  if (!state.qrPoints.length) {
+    els.qrPointsList.innerHTML = '<div class="empty-state">Aún no hay puntos QR para esta comuna.</div>';
+    return;
+  }
+  els.qrPointsList.innerHTML = state.qrPoints.map(point => `
+    <article class="qr-point-card">
+      <div class="qr-point-head"><div><strong>${escapeHtml(point.name)}</strong><div class="qr-point-code">${escapeHtml(point.code)}</div></div><span>${point.enabled ? "🟢 Activo" : "⚪ Inactivo"}</span></div>
+      <p>${escapeHtml(point.description || "Sin descripción")}</p>
+      <div>📍 ${Number(point.latitude).toFixed(6)}, ${Number(point.longitude).toFixed(6)}</div>
+      <div class="qr-canvas" id="qr-canvas-${point.id}"></div>
+      <div class="qr-metrics"><span>👁 ${Number(point.visit_count || 0)} accesos</span><span>👥 ${Number(point.unique_visitors || 0)} visitantes</span></div>
+      <div class="qr-point-actions">
+        <button type="button" onclick="printQrPoint('${point.id}')">Imprimir señalética</button>
+        <button type="button" class="secondary-button" onclick="copyQrUrl('${point.id}')">Copiar URL</button>
+        <button type="button" class="secondary-button" onclick="toggleQrPoint('${point.id}', ${!point.enabled})">${point.enabled ? "Desactivar" : "Activar"}</button>
+      </div>
+    </article>`).join("");
+  state.qrPoints.forEach(point => {
+    const target = document.getElementById(`qr-canvas-${point.id}`);
+    if (target && window.QRCode) new QRCode(target, { text: point.pwa_url, width: 180, height: 180, correctLevel: QRCode.CorrectLevel.H });
+  });
+}
+
+async function createQrPoint() {
+  const payload = {
+    name: document.getElementById("qrPointName").value.trim(),
+    description: document.getElementById("qrPointDescription").value.trim(),
+    latitude: Number(document.getElementById("qrPointLatitude").value),
+    longitude: Number(document.getElementById("qrPointLongitude").value)
+  };
+  try {
+    const res = await fetch(`${API}/admin/control-centers/${encodeURIComponent(currentControlCenterCode())}/qr-points`, { method: "POST", headers: apiHeaders(), body: JSON.stringify(payload) });
+    const data = await res.json();
+    if (!res.ok || data.status !== "ok") throw new Error(data.message || "No fue posible crear QR");
+    ["qrPointName", "qrPointDescription", "qrPointLatitude", "qrPointLongitude"].forEach(id => { document.getElementById(id).value = ""; });
+    toast("Punto QR creado");
+    await loadQrPoints();
+  } catch (error) { toast(error.message); }
+}
+
+async function toggleQrPoint(id, enabled) {
+  const res = await fetch(`${API}/admin/qr-points/${encodeURIComponent(id)}`, { method: "PATCH", headers: apiHeaders(), body: JSON.stringify({ control_center_code: currentControlCenterCode(), enabled }) });
+  const data = await res.json();
+  if (!res.ok || data.status !== "ok") return toast(data.message || "No fue posible actualizar QR");
+  await loadQrPoints();
+}
+
+async function copyQrUrl(id) {
+  const point = state.qrPoints.find(item => item.id === id);
+  if (!point) return;
+  try { await navigator.clipboard.writeText(point.pwa_url); toast("URL QR copiada"); } catch { window.prompt("Copia la URL", point.pwa_url); }
+}
+
+function printQrPoint(id) {
+  const point = state.qrPoints.find(item => item.id === id);
+  const canvas = document.querySelector(`#qr-canvas-${id} canvas`);
+  const image = canvas?.toDataURL("image/png");
+  if (!point || !image) return toast("El QR todavía no está listo");
+  const popup = window.open("", "_blank");
+  if (!popup) return toast("Habilita ventanas emergentes para imprimir");
+  popup.opener = null;
+  popup.document.write(`<!doctype html><html><head><title>QR ${escapeHtml(point.name)}</title><style>body{font-family:Arial;text-align:center;padding:42px;color:#0f172a}.sign{border:5px solid #0f172a;border-radius:28px;padding:30px;max-width:620px;margin:auto}h1{font-size:38px}p{font-size:22px}img{width:360px;height:360px}.small{font-size:14px;color:#475569}</style></head><body><div class="sign"><h1>¿Necesitas ayuda?</h1><p>Escanea este código para reportar una emergencia a la Municipalidad.</p><img src="${image}"><h2>${escapeHtml(point.name)}</h2><div class="small">Código ${escapeHtml(point.code)} · La ubicación del evento se obtiene desde el GPS del teléfono al enviar el SOS.</div></div><script>onload=()=>print()<\/script></body></html>`);
+  popup.document.close();
 }
 
 async function savePlatformSettings() {
@@ -1610,6 +1716,8 @@ els.clearSirenButton.addEventListener("click", clearSirenForm);
 els.reloadDevicesButton?.addEventListener("click", loadPhysicalDevices);
 els.saveDeviceButton?.addEventListener("click", savePhysicalDevice);
 els.clearDeviceButton?.addEventListener("click", clearPhysicalDeviceForm);
+document.getElementById("reloadQrButton")?.addEventListener("click", loadQrPoints);
+document.getElementById("createQrButton")?.addEventListener("click", createQrPoint);
 els.nearbyCategoryChips?.addEventListener("click", (event) => {
   const button = event.target.closest("[data-category]");
   if (button) toggleNearbyCategory(button.dataset.category);
@@ -1625,6 +1733,7 @@ els.controlCenterInput.addEventListener("change", async () => {
   await loadBranding();
   await loadSirens();
   await loadPhysicalDevices();
+  await loadQrPoints();
   await loadUsers();
 });
 

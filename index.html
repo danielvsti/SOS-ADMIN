@@ -43,6 +43,7 @@
       <button class="admin-tab" type="button" data-section="platform"><span>⚙️</span> Configuración plataforma</button>
       <button class="admin-tab" type="button" data-section="sirens"><span>📣</span> Sirenas</button>
       <button class="admin-tab" type="button" data-section="devices"><span>🆘</span> Botones SOS físicos</button>
+      <button class="admin-tab" type="button" data-section="qr"><span>▦</span> Puntos QR</button>
     </nav>
     <section class="card filters-card" id="userFiltersCard">
       <div class="section-title">Control municipal</div>
@@ -118,6 +119,18 @@
           <h3>Botones SOS físicos</h3>
           <p class="muted small-note">Dispositivos físicos de emergencia instalados en la comuna (pulsadores, pendantes u otros) que generan un ticket directo sin pasar por la app.</p>
           <label class="check-row"><input id="cfgPhysicalButtons" type="checkbox" /> Botones SOS físicos habilitados</label>
+        </div>
+
+        <div class="settings-pane wide-pane">
+          <h3>Directorio de emergencia del Operador</h3>
+          <p class="muted small-note">Números visibles como acceso rápido en el Panel de Control.</p>
+          <label class="check-row"><input id="cfgOperatorDashboard" type="checkbox" /> Permitir acceso de usuarios OPERATOR al Dashboard Ejecutivo</label>
+          <div class="edit-grid">
+            <label>Ambulancia / SAMU<input id="cfgEmergencyAmbulance" inputmode="tel" placeholder="131" /></label>
+            <label>Bomberos<input id="cfgEmergencyFire" inputmode="tel" placeholder="132" /></label>
+            <label>Carabineros<input id="cfgEmergencyPolice" inputmode="tel" placeholder="133" /></label>
+            <label>Seguridad Municipal<input id="cfgEmergencyMunicipal" inputmode="tel" placeholder="Número municipal" /></label>
+          </div>
         </div>
 
         <div class="settings-pane">
@@ -235,6 +248,22 @@
         <button id="saveSettingsButton" class="success-button">Guardar configuración plataforma</button>
         <span id="settingsStatus" class="summary">-</span>
       </div>
+    </section>
+
+    <section class="card platform-card" id="qrAdminCard" hidden>
+      <div class="create-card-header">
+        <div><div class="section-title">Puntos QR de acceso rápido</div><p>Crea señalética georreferenciada para abrir la PWA Vecino y medir accesos por punto. El SOS siempre utilizará el GPS real del teléfono.</p></div>
+        <button id="reloadQrButton" class="secondary-button" type="button">Recargar</button>
+      </div>
+      <div class="qr-create-grid">
+        <label>Nombre del punto<input id="qrPointName" placeholder="Plaza principal" /></label>
+        <label>Descripción<input id="qrPointDescription" placeholder="Acceso norte / poste municipal" /></label>
+        <label>Latitud<input id="qrPointLatitude" type="number" step="0.000001" placeholder="-33.123456" /></label>
+        <label>Longitud<input id="qrPointLongitude" type="number" step="0.000001" placeholder="-70.123456" /></label>
+        <button id="createQrButton" class="success-button" type="button">Generar punto QR</button>
+      </div>
+      <div id="qrStatus" class="summary"></div>
+      <div id="qrPointsList" class="qr-points-list"></div>
     </section>
 
     
@@ -440,6 +469,7 @@
 
   <div id="toast" class="toast" hidden></div>
 
-  <script src="app.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+  <script src="app.js?v=qr-access-v1"></script>
 </body>
 </html>
