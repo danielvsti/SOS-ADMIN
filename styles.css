@@ -293,6 +293,18 @@ button:disabled {
   justify-content: flex-end;
 }
 
+.device-row-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.device-row-actions .small-button {
+  padding: 8px 12px;
+}
+
 .badge {
   border-radius: 999px;
   padding: 8px 10px;
@@ -418,6 +430,10 @@ button:disabled {
   }
 
   .badges {
+    justify-content: flex-start;
+  }
+
+  .device-row-actions {
     justify-content: flex-start;
   }
 }

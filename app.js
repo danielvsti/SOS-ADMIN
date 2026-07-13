@@ -1126,20 +1126,40 @@ function renderPhysicalDevices() {
   els.devicesList.innerHTML = state.physicalDevices.map(device => {
     const meta = deviceMetadata(device);
     const enabled = meta.enabled !== false && device.status !== "DISABLED";
-    const lat = device.last_latitude ?? meta.latitude ?? "-";
-    const lon = device.last_longitude ?? meta.longitude ?? "-";
+    const lat = device.last_latitude ?? meta.latitude ?? null;
+    const lon = device.last_longitude ?? meta.longitude ?? null;
+    const gpsLabel = lat != null && lon != null ? `${lat}, ${lon}` : "Sin ubicación GPS";
     return `
-      <div class="user-row" onclick="editPhysicalDevice('${escapeHtml(device.id)}')">
+      <div class="user-row" data-device-edit-id="${escapeHtml(device.id)}" role="button" tabindex="0">
         <div>
           <div class="user-name">${escapeHtml(device.name || device.id)}</div>
           <div class="user-meta">${escapeHtml(device.id)} · ${escapeHtml(device.type || "PHYSICAL_SOS")} · Flespi ${escapeHtml(device.platform_id || "-")}</div>
-          <div class="user-meta">GPS: ${escapeHtml(lat)}, ${escapeHtml(lon)} · SIM ${escapeHtml(meta.sim_phone || "-")}</div>
+          <div class="user-meta">GPS: ${escapeHtml(gpsLabel)} · SIM ${escapeHtml(meta.sim_phone || "-")}</div>
           <div class="user-meta">Último heartbeat: ${formatDate(device.last_seen)} · ${escapeHtml(meta.registered_address || "Sin dirección")}</div>
         </div>
-        <div class="badges"><span class="badge ${enabled ? "account-active" : "account-inactive"}">${enabled ? "Habilitado" : "Deshabilitado"}</span></div>
+        <div class="device-row-actions">
+          <span class="badge ${enabled ? "account-active" : "account-inactive"}">${enabled ? "Habilitado" : "Deshabilitado"}</span>
+          <button class="danger-button small-button" type="button" data-device-delete-id="${escapeHtml(device.id)}" aria-label="Eliminar ${escapeHtml(device.name || device.id)}">Eliminar</button>
+        </div>
       </div>
     `;
   }).join("");
+
+  els.devicesList.querySelectorAll("[data-device-edit-id]").forEach(row => {
+    row.addEventListener("click", () => editPhysicalDevice(row.dataset.deviceEditId));
+    row.addEventListener("keydown", event => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        editPhysicalDevice(row.dataset.deviceEditId);
+      }
+    });
+  });
+  els.devicesList.querySelectorAll("[data-device-delete-id]").forEach(button => {
+    button.addEventListener("click", event => {
+      event.stopPropagation();
+      deletePhysicalDevice(button.dataset.deviceDeleteId);
+    });
+  });
 }
 
 window.editPhysicalDevice = function editPhysicalDevice(id) {
@@ -1176,8 +1196,8 @@ async function savePhysicalDevice() {
     name: document.getElementById("deviceNameInput").value.trim(),
     type: document.getElementById("deviceTypeInput").value,
     platform_id: document.getElementById("devicePlatformIdInput").value.trim(),
-    last_latitude: document.getElementById("deviceLatitudeInput").value.trim(),
-    last_longitude: document.getElementById("deviceLongitudeInput").value.trim(),
+    latitude: document.getElementById("deviceLatitudeInput").value.trim(),
+    longitude: document.getElementById("deviceLongitudeInput").value.trim(),
     status: document.getElementById("deviceEnabledInput").value === "true" ? "OFFLINE" : "DISABLED",
     metadata: {
       enabled: document.getElementById("deviceEnabledInput").value === "true",
@@ -1201,12 +1221,40 @@ async function savePhysicalDevice() {
     const data = await res.json().catch(() => ({}));
     if (!res.ok || data.status !== "ok") throw new Error(data.message || "No fue posible guardar botón físico");
     toast("Botón SOS físico guardado");
+    clearPhysicalDeviceForm();
     await loadPhysicalDevices();
   } catch (error) {
     console.error(error);
     toast(error.message);
   } finally {
     els.saveDeviceButton.disabled = false;
+  }
+}
+
+async function deletePhysicalDevice(id) {
+  const device = state.physicalDevices.find(item => String(item.id) === String(id));
+  if (!device) return;
+
+  const name = device.name || device.id;
+  if (!confirm(`¿Eliminar el botón físico “${name}”?\n\nDejará de aparecer en el mapa y de pertenecer a este Centro de Control.`)) return;
+
+  const code = currentControlCenterCode();
+  try {
+    const res = await fetch(
+      `${API}/admin/control-centers/${encodeURIComponent(code)}/devices/${encodeURIComponent(device.id)}`,
+      { method: "DELETE", headers: apiHeaders() }
+    );
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.status !== "ok") throw new Error(data.message || "No fue posible eliminar el botón físico");
+
+    if (document.getElementById("deviceIdInput").value.trim() === String(device.id)) {
+      clearPhysicalDeviceForm();
+    }
+    toast("Botón físico eliminado");
+    await loadPhysicalDevices();
+  } catch (error) {
+    console.error(error);
+    toast(error.message);
   }
 }
 
