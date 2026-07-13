@@ -472,6 +472,26 @@ function announcementDateValue(value) {
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
 
+function detectAnnouncementMediaType(rawUrl) {
+  try {
+    const parsed = new URL(String(rawUrl || "").trim());
+    const host = parsed.hostname.toLowerCase().replace(/^www\./, "");
+    const path = parsed.pathname.toLowerCase();
+    if (["youtube.com", "m.youtube.com", "youtu.be", "youtube-nocookie.com", "vimeo.com", "player.vimeo.com"].includes(host)) return "VIDEO";
+    if (/\.(mp4|webm|m4v|mov|m3u8)$/.test(path)) return "VIDEO";
+    if (/\.(png|jpe?g|webp|gif|avif)$/.test(path)) return "IMAGE";
+  } catch (_) {}
+  return null;
+}
+
+function syncAnnouncementMediaType() {
+  const urlInput = document.getElementById("announcementMediaUrl");
+  const typeSelect = document.getElementById("announcementMediaType");
+  if (!urlInput || !typeSelect || !urlInput.value.trim()) return;
+  const detected = detectAnnouncementMediaType(urlInput.value);
+  if (detected) typeSelect.value = detected;
+}
+
 function renderAnnouncementTargets() {
   const select = document.getElementById("announcementTargetUser");
   if (!select) return;
@@ -1804,6 +1824,8 @@ document.getElementById("createAnnouncementButton")?.addEventListener("click", c
 document.getElementById("announcementAudience")?.addEventListener("change", (event) => {
   document.getElementById("announcementTargetField").hidden = event.target.value !== "PERSONAL";
 });
+document.getElementById("announcementMediaUrl")?.addEventListener("input", syncAnnouncementMediaType);
+document.getElementById("announcementMediaUrl")?.addEventListener("paste", () => setTimeout(syncAnnouncementMediaType, 0));
 els.nearbyCategoryChips?.addEventListener("click", (event) => {
   const button = event.target.closest("[data-category]");
   if (button) toggleNearbyCategory(button.dataset.category);
