@@ -12,6 +12,8 @@ const state = {
   sirens: [],
   physicalDevices: [],
   qrPoints: [],
+  announcements: [],
+  communicationsLicense: null,
   usersPage: 1,
   usersPageSize: 10,
   activeAdminSection: "users"
@@ -71,6 +73,7 @@ const els = {
   devicesList: document.getElementById("devicesList"),
   physicalDevicesAdminCard: document.getElementById("physicalDevicesAdminCard"),
   qrAdminCard: document.getElementById("qrAdminCard"),
+  communicationsAdminCard: document.getElementById("communicationsAdminCard"),
   qrPointsList: document.getElementById("qrPointsList"),
   qrStatus: document.getElementById("qrStatus"),
   nearbyCategoryChips: document.getElementById("nearbyCategoryChips"),
@@ -437,7 +440,8 @@ function adminSectionCards() {
     platform: [els.platformConfigCard],
     sirens: [els.sirensAdminCard],
     devices: [els.physicalDevicesAdminCard],
-    qr: [els.qrAdminCard]
+    qr: [els.qrAdminCard],
+    communications: [els.communicationsAdminCard]
   };
 }
 
@@ -459,6 +463,83 @@ function setAdminSection(section) {
   document.querySelectorAll(".admin-tab").forEach((button) => {
     button.classList.toggle("active", button.dataset.section === state.activeAdminSection);
   });
+  if (state.activeAdminSection === "communications") loadAnnouncements();
+}
+
+function announcementDateValue(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+}
+
+function renderAnnouncementTargets() {
+  const select = document.getElementById("announcementTargetUser");
+  if (!select) return;
+  const neighbors = (state.users || []).filter(user => String(user.role).toUpperCase() === "NEIGHBOR");
+  select.innerHTML = '<option value="">Seleccionar vecino</option>' + neighbors.map(user => `<option value="${escapeHtml(user.id)}">${escapeHtml(user.full_name || user.phone)} · ${escapeHtml(user.phone || "")}</option>`).join("");
+}
+
+function renderAnnouncements() {
+  const list = document.getElementById("announcementsList");
+  const editor = document.getElementById("announcementEditor");
+  const notice = document.getElementById("communicationsLicenseNotice");
+  const license = state.communicationsLicense || {};
+  if (notice) {
+    notice.textContent = license.enabled ? `✅ Módulo contratado · máximo ${license.max_active_announcements || 20} anuncios activos` : "🔒 Módulo de Comunicaciones no contratado. Solicita habilitación a VS&TI.";
+    notice.dataset.enabled = String(license.enabled === true);
+  }
+  if (editor) editor.hidden = !license.enabled;
+  if (!list) return;
+  list.innerHTML = (state.announcements || []).map(item => `
+    <article class="announcement-admin-card">
+      <div><strong>${escapeHtml(item.title)}</strong><div>${escapeHtml(item.body || "Sin texto")}</div></div>
+      <div class="announcement-admin-meta">${item.audience_type === "PERSONAL" ? `👤 ${escapeHtml(item.target_user_name || item.target_user_phone || "Vecino")}` : "🏛️ Toda la comuna"} · ${escapeHtml(item.status)} · 👁 ${Number(item.opened_count || 0)}</div>
+      ${item.media_url ? `<a href="${escapeHtml(item.media_url)}" target="_blank" rel="noopener">Ver contenido ${escapeHtml(item.media_type)}</a>` : ""}
+      <div class="toolbar"><button class="secondary-button" type="button" data-announcement-status="${escapeHtml(item.id)}" data-next-status="${item.status === "PUBLISHED" ? "ARCHIVED" : "PUBLISHED"}">${item.status === "PUBLISHED" ? "Archivar" : "Publicar"}</button></div>
+    </article>`).join("") || '<div class="empty-state">Todavía no hay anuncios configurados.</div>';
+  list.querySelectorAll("[data-announcement-status]").forEach(button => button.addEventListener("click", () => updateAnnouncementStatus(button.dataset.announcementStatus, button.dataset.nextStatus)));
+}
+
+async function loadAnnouncements() {
+  try {
+    const res = await fetch(`${API}/admin/control-centers/${encodeURIComponent(currentControlCenterCode())}/announcements`, { headers: apiHeaders() });
+    const data = await res.json();
+    if (!res.ok || data.status !== "ok") throw new Error(data.message || "No fue posible cargar anuncios");
+    state.communicationsLicense = data.license || {};
+    state.announcements = data.announcements || [];
+    renderAnnouncementTargets();
+    renderAnnouncements();
+  } catch (error) { toast(error.message); }
+}
+
+async function createAnnouncement() {
+  const payload = {
+    title: document.getElementById("announcementTitle").value.trim(),
+    body: document.getElementById("announcementBody").value.trim(),
+    audience_type: document.getElementById("announcementAudience").value,
+    target_user_id: document.getElementById("announcementTargetUser").value || null,
+    media_type: document.getElementById("announcementMediaType").value,
+    media_url: document.getElementById("announcementMediaUrl").value.trim() || null,
+    status: document.getElementById("announcementStatus").value,
+    starts_at: announcementDateValue(document.getElementById("announcementStartsAt").value),
+    ends_at: announcementDateValue(document.getElementById("announcementEndsAt").value)
+  };
+  try {
+    const res = await fetch(`${API}/admin/control-centers/${encodeURIComponent(currentControlCenterCode())}/announcements`, { method:"POST", headers:apiHeaders(), body:JSON.stringify(payload) });
+    const data = await res.json();
+    if (!res.ok || data.status !== "ok") throw new Error(data.message || "No fue posible crear anuncio");
+    toast("Anuncio creado");
+    document.getElementById("announcementTitle").value = "";
+    document.getElementById("announcementBody").value = "";
+    await loadAnnouncements();
+  } catch (error) { toast(error.message); }
+}
+
+async function updateAnnouncementStatus(id, status) {
+  const res = await fetch(`${API}/admin/control-centers/${encodeURIComponent(currentControlCenterCode())}/announcements/${encodeURIComponent(id)}`, { method:"PATCH", headers:apiHeaders(), body:JSON.stringify({ status }) });
+  const data = await res.json();
+  if (!res.ok || data.status !== "ok") return toast(data.message || "No fue posible actualizar anuncio");
+  await loadAnnouncements();
 }
 
 function setupAdminSections() {
@@ -1718,6 +1799,11 @@ els.saveDeviceButton?.addEventListener("click", savePhysicalDevice);
 els.clearDeviceButton?.addEventListener("click", clearPhysicalDeviceForm);
 document.getElementById("reloadQrButton")?.addEventListener("click", loadQrPoints);
 document.getElementById("createQrButton")?.addEventListener("click", createQrPoint);
+document.getElementById("reloadAnnouncementsButton")?.addEventListener("click", loadAnnouncements);
+document.getElementById("createAnnouncementButton")?.addEventListener("click", createAnnouncement);
+document.getElementById("announcementAudience")?.addEventListener("change", (event) => {
+  document.getElementById("announcementTargetField").hidden = event.target.value !== "PERSONAL";
+});
 els.nearbyCategoryChips?.addEventListener("click", (event) => {
   const button = event.target.closest("[data-category]");
   if (button) toggleNearbyCategory(button.dataset.category);

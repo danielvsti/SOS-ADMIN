@@ -44,6 +44,7 @@
       <button class="admin-tab" type="button" data-section="sirens"><span>📣</span> Sirenas</button>
       <button class="admin-tab" type="button" data-section="devices"><span>🆘</span> Botones SOS físicos</button>
       <button class="admin-tab" type="button" data-section="qr"><span>▦</span> Puntos QR</button>
+      <button class="admin-tab" type="button" data-section="communications"><span>📢</span> Comunicaciones</button>
     </nav>
     <section class="card filters-card" id="userFiltersCard">
       <div class="section-title">Control municipal</div>
@@ -264,6 +265,29 @@
       </div>
       <div id="qrStatus" class="summary"></div>
       <div id="qrPointsList" class="qr-points-list"></div>
+    </section>
+
+    <section class="card platform-card" id="communicationsAdminCard" hidden>
+      <div class="create-card-header">
+        <div><div class="section-title">Comunicaciones a vecinos</div><p>Publica anuncios municipales o avisos individuales cuando el módulo esté contratado.</p></div>
+        <button id="reloadAnnouncementsButton" class="secondary-button" type="button">Recargar</button>
+      </div>
+      <div id="communicationsLicenseNotice" class="communications-license-notice">Consultando licencia...</div>
+      <div id="announcementEditor" class="announcement-editor">
+        <div class="edit-grid">
+          <label>Título<input id="announcementTitle" maxlength="180" placeholder="Corte de tránsito programado" /></label>
+          <label>Audiencia<select id="announcementAudience"><option value="BROADCAST">Toda la comuna</option><option value="PERSONAL">Vecino específico</option></select></label>
+          <label id="announcementTargetField" hidden>Vecino destinatario<select id="announcementTargetUser"><option value="">Seleccionar vecino</option></select></label>
+          <label>Contenido<select id="announcementMediaType"><option value="NONE">Sólo texto</option><option value="IMAGE">Imagen</option><option value="VIDEO">Video</option></select></label>
+          <label>URL multimedia HTTPS<input id="announcementMediaUrl" type="url" placeholder="https://..." /></label>
+          <label>Estado<select id="announcementStatus"><option value="DRAFT">Borrador</option><option value="PUBLISHED">Publicado</option></select></label>
+          <label>Inicio<input id="announcementStartsAt" type="datetime-local" /></label>
+          <label>Término<input id="announcementEndsAt" type="datetime-local" /></label>
+        </div>
+        <label>Mensaje<textarea id="announcementBody" maxlength="5000" placeholder="Información que verá el vecino..."></textarea></label>
+        <div class="toolbar"><button id="createAnnouncementButton" class="success-button" type="button">Crear anuncio</button><span id="announcementsStatus" class="summary"></span></div>
+      </div>
+      <div id="announcementsList" class="announcements-list"></div>
     </section>
 
     
