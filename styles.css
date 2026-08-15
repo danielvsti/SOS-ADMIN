@@ -4,6 +4,9 @@
 
 /* QUELTU Seguridad Operacional */
 .safety-admin-card { border-top: 5px solid #e4473f; }
+.safety-module-explanation { margin: 16px 0; padding: 16px 18px; border: 1px solid #bfdbfe; border-radius: 16px; background: #eff6ff; color: #1e3a5f; }
+.safety-module-explanation strong { display: block; margin-bottom: 6px; color: #0f172a; }
+.safety-module-explanation p { margin: 0; line-height: 1.45; }
 .safety-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); gap: 12px; margin: 18px 0; }
 .safety-kpi { padding: 16px; border: 1px solid #dce3ec; border-radius: 18px; background: #f8fafc; display: grid; gap: 8px; }
 .safety-kpi span { color: #64748b; font-size: .8rem; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; }

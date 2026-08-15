@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>QUELTU · Administración municipal</title>
+  <title>QUELTU · Administración</title>
   <meta name="theme-color" content="#151A1D" />
   <link rel="icon" href="queltu-symbol.png" type="image/png" />
   <link rel="manifest" href="manifest.json" />
-  <link rel="stylesheet" href="styles.css?v=safety-operations-v1" />
+  <link rel="stylesheet" href="styles.css?v=vertical-config-v2" />
   <link rel="stylesheet" href="queltu-brand.css?v=20260716-2" />
 </head>
 <body>
@@ -16,7 +16,7 @@
       <img src="queltu-symbol.png" class="queltu-mark" alt="QUELTU" />
       <div>
         <div class="eyebrow">QUELTU · Protección conectada</div>
-        <h1>Administración municipal</h1>
+        <h1 id="adminPageTitle">Administración</h1>
       </div>
     </div>
     <div class="topbar-actions">
@@ -52,10 +52,10 @@
       <button class="admin-tab" type="button" data-section="devices"><span>🆘</span> Botones SOS físicos</button>
       <button class="admin-tab" type="button" data-section="qr"><span>▦</span> Puntos QR</button>
       <button class="admin-tab" type="button" data-section="communications"><span>📢</span> Comunicaciones</button>
-      <button class="admin-tab" type="button" data-section="safety"><span>⛑</span> Seguridad operacional</button>
+      <button class="admin-tab" id="safetyAdminTab" type="button" data-section="safety"><span>⛑</span> Seguridad operacional</button>
     </nav>
     <section class="card filters-card" id="userFiltersCard">
-      <div class="section-title">Control municipal</div>
+      <div class="section-title" id="usersSectionTitle">Gestión de usuarios</div>
       <div class="filters-grid">
         <label>
           Centro
@@ -65,9 +65,9 @@
           Rol
           <select id="roleFilter">
             <option value="ALL">Todos</option>
-            <option value="NEIGHBOR">Vecinos</option>
-            <option value="RESOLVER">Resolutores</option>
-            <option value="OPERATOR">Operadores</option>
+            <option id="roleNeighborOption" value="NEIGHBOR">Usuarios</option>
+            <option id="roleResponderOption" value="RESOLVER">Respondedores</option>
+            <option id="roleOperatorOption" value="OPERATOR">Operadores</option>
             <option value="ADMIN">Administradores</option>
           </select>
         </label>
@@ -100,7 +100,7 @@
       <div class="create-card-header">
         <div>
           <div class="section-title">Configuración Plataforma</div>
-          <p>Define las políticas funcionales del Centro de Control seleccionado. Estas reglas se aplican al mapa, tickets, llamadas, sirenas y reportes ciudadanos.</p>
+          <p id="platformConfigIntro">Define las políticas funcionales del Centro de Control seleccionado. Estas reglas se aplican al mapa, tickets, llamadas, dispositivos y reportes operacionales.</p>
         </div>
         <button id="reloadSettingsButton" class="secondary-button">Recargar configuración</button>
       </div>
@@ -120,37 +120,37 @@
         </div>
         <div class="settings-pane">
           <h3>Funcionalidades</h3>
-          <label class="check-row"><input id="cfgMobileApp" type="checkbox" /> App Vecino habilitada</label>
-          <label class="check-row"><input id="cfgResolverApp" type="checkbox" /> App Resolutor habilitada</label>
+          <label class="check-row"><input id="cfgMobileApp" type="checkbox" /> <span id="mobileAppFeatureLabel">App Usuario habilitada</span></label>
+          <label class="check-row"><input id="cfgResolverApp" type="checkbox" /> <span id="responderAppFeatureLabel">App Respuesta habilitada</span></label>
           <label class="check-row"><input id="cfgSirens" type="checkbox" /> Sirenas habilitadas</label>
           <label class="check-row"><input id="cfgSecureVoice" type="checkbox" /> Llamadas seguras habilitadas</label>
-          <label class="check-row"><input id="cfgMultiReports" type="checkbox" /> Agrupar múltiples reportes ciudadanos</label>
-          <label class="check-row"><input id="cfgResolverAutoAssign" type="checkbox" /> Autoasignación de resolutores</label>
+          <label class="check-row"><input id="cfgMultiReports" type="checkbox" /> <span id="multiReportsFeatureLabel">Agrupar múltiples reportes</span></label>
+          <label class="check-row"><input id="cfgResolverAutoAssign" type="checkbox" /> <span id="responderAutoAssignLabel">Autoasignación de respondedores</span></label>
         </div>
 
 
 
         <div class="settings-pane wide-pane neighbor-categories-pane">
-          <h3>Categorías visibles en App Vecino</h3>
-          <p class="muted small-note">Define qué botones verá el vecino cuando presione SOS. El Centro puede ocultar categorías que no quiera recibir por ahora y ordenar las más importantes primero.</p>
-          <div id="neighborCategoryList" class="neighbor-category-list" aria-label="Categorías visibles en App Vecino"></div>
-          <div class="hint-text">Debe quedar al menos una categoría activa. Si desactivas una categoría, la App Vecino la ocultará y el backend rechazará envíos manipulados.</div>
+          <h3 id="userCategoriesTitle">Categorías visibles en App Usuario</h3>
+          <p class="muted small-note" id="userCategoriesDescription">El catálogo maestro lo administra QUELTU SuperAdmin. Aquí puedes habilitar, renombrar y ordenar las categorías aplicables a esta vertical.</p>
+          <div id="neighborCategoryList" class="neighbor-category-list" aria-label="Categorías visibles en App Usuario"></div>
+          <div class="hint-text" id="userCategoriesHint">Debe quedar al menos una categoría activa. Las categorías desactivadas se ocultan y el backend rechaza envíos manipulados.</div>
         </div>
         <div class="settings-pane" data-physical-buttons-policy>
           <h3>Botones SOS físicos</h3>
-          <p class="muted small-note">Dispositivos físicos de emergencia instalados en la comuna (pulsadores, pendantes u otros) que generan un ticket directo sin pasar por la app.</p>
+          <p class="muted small-note" id="physicalButtonsDescription">Dispositivos físicos de emergencia instalados en la zona operacional que generan un ticket directo sin pasar por la app.</p>
           <label class="check-row"><input id="cfgPhysicalButtons" type="checkbox" /> Botones SOS físicos habilitados</label>
         </div>
 
         <div class="settings-pane wide-pane">
-          <h3>Directorio de emergencia del Operador</h3>
+          <h3 id="operatorDirectoryTitle">Directorio de emergencia del Operador</h3>
           <p class="muted small-note">Números visibles como acceso rápido en el Panel de Control.</p>
           <label class="check-row"><input id="cfgOperatorDashboard" type="checkbox" /> Permitir acceso de usuarios OPERATOR al Dashboard Ejecutivo</label>
           <div class="edit-grid">
-            <label>Ambulancia / SAMU<input id="cfgEmergencyAmbulance" inputmode="tel" placeholder="131" /></label>
-            <label>Bomberos<input id="cfgEmergencyFire" inputmode="tel" placeholder="132" /></label>
-            <label>Carabineros<input id="cfgEmergencyPolice" inputmode="tel" placeholder="133" /></label>
-            <label>Seguridad Municipal<input id="cfgEmergencyMunicipal" inputmode="tel" placeholder="Número municipal" /></label>
+            <label><span id="medicalEmergencyLabel">Emergencia médica</span><input id="cfgEmergencyAmbulance" inputmode="tel" placeholder="Número de emergencia" /></label>
+            <label><span id="fireEmergencyLabel">Respuesta contra incendios</span><input id="cfgEmergencyFire" inputmode="tel" placeholder="Número de emergencia" /></label>
+            <label><span id="securityEmergencyLabel">Seguridad pública o patrimonial</span><input id="cfgEmergencyPolice" inputmode="tel" placeholder="Número de emergencia" /></label>
+            <label><span id="organizationSecurityLabel">Seguridad de la organización</span><input id="cfgEmergencyMunicipal" inputmode="tel" placeholder="Número de emergencia" /></label>
           </div>
         </div>
 
@@ -159,7 +159,7 @@
           <div class="edit-grid one-col">
             <label>Radio agrupamiento incidentes (metros)<input id="cfgDedupRadius" type="number" min="10" max="2000" /></label>
             <label>Ventana agrupamiento incidentes (minutos)<input id="cfgDedupWindow" type="number" min="1" max="1440" /></label>
-            <label>GPS resolutor máximo válido (segundos)<input id="cfgResolverGpsAge" type="number" min="30" max="86400" /></label>
+            <label><span id="responderGpsLabel">GPS respondedor máximo válido (segundos)</span><input id="cfgResolverGpsAge" type="number" min="30" max="86400" /></label>
           </div>
         </div>
 
@@ -193,18 +193,18 @@
         </div>
 
         <div class="settings-pane wide-pane">
-          <h3>Notificaciones a vecinos cercanos</h3>
-          <label class="check-row"><input id="cfgNearbyNotifications" type="checkbox" /> Enviar notificación a vecinos cercanos ante emergencia activa</label>
+          <h3 id="nearbyNotificationsTitle">Notificaciones a usuarios cercanos</h3>
+          <label class="check-row"><input id="cfgNearbyNotifications" type="checkbox" /> <span id="nearbyNotificationsLabel">Enviar notificación a usuarios cercanos ante un incidente activo</span></label>
           <div class="edit-grid">
             <label>Radio notificación (metros)<input id="cfgNearbyRadius" type="number" min="50" max="5000" /></label>
             <div class="form-field full-field">
               <div class="field-label">Categorías notificables</div>
               <input id="cfgNearbyCategories" type="hidden" />
               <div id="nearbyCategoryChips" class="category-chips" aria-label="Categorías notificables"></div>
-              <div class="hint-text">Selecciona por click. VIF, botones silenciosos y casos sensibles quedan excluidos por seguridad.</div>
+              <div class="hint-text">Selecciona por click. Las categorías sensibles o silenciosas quedan excluidas por seguridad.</div>
             </div>
           </div>
-          <div class="hint-text">No usar para VIF, botones silenciosos o casos donde pueda exponerse al denunciante.</div>
+          <div class="hint-text">No usar en casos sensibles o cuando una notificación pueda exponer a la persona que reporta.</div>
         </div>
       </div>
 
@@ -213,24 +213,24 @@
             <div class="create-card-header">
               <div>
                 <div class="section-title">Branding del Centro de Control</div>
-                <p>Define la identidad visual municipal que verá el operador en el mapa. El logo municipal es la marca principal; el logo de producto queda como respaldo discreto.</p>
+                <p id="brandingDescription">Define la identidad visual de la organización que verá el operador en el mapa.</p>
               </div>
               <button id="reloadBrandingButton" class="secondary-button">Recargar branding</button>
             </div>
       
             <div class="branding-layout">
               <div class="settings-pane">
-                <h3>Logo municipal</h3>
+                <h3 id="organizationLogoTitle">Logo de la organización</h3>
                 <p class="muted small-note">Recomendado: PNG/WebP transparente, ancho mínimo 320 px. Para demo se puede guardar como imagen embebida; para producción conviene usar URL pública/CDN.</p>
-                <label>Subir logo municipal
+                <label><span id="organizationLogoUploadLabel">Subir logo de la organización</span>
                   <input id="municipalityLogoFile" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" />
                 </label>
                 <label>O pegar URL https
                   <input id="municipalityLogoUrlInput" placeholder="https://.../logo-municipal.png" />
                 </label>
                 <div class="brand-preview-card">
-                  <div class="brand-preview-title">Preview municipal</div>
-                  <img id="municipalityLogoPreview" alt="Logo municipal" />
+                  <div class="brand-preview-title" id="organizationLogoPreviewTitle">Preview organización</div>
+                  <img id="municipalityLogoPreview" alt="Logo de la organización" />
                 </div>
               </div>
       
@@ -260,7 +260,7 @@
             </div>
       
             <div class="toolbar">
-              <button id="saveBrandingButton" class="success-button">Guardar branding municipal</button>
+              <button id="saveBrandingButton" class="success-button">Guardar branding</button>
               <span id="brandingStatus" class="summary">-</span>
             </div>
           </div>
@@ -273,12 +273,12 @@
 
     <section class="card platform-card" id="qrAdminCard" hidden>
       <div class="create-card-header">
-        <div><div class="section-title">Puntos QR de acceso rápido</div><p>Crea señalética georreferenciada para abrir la PWA Vecino y medir accesos por punto. El SOS siempre utilizará el GPS real del teléfono.</p></div>
+        <div><div class="section-title">Puntos QR de acceso rápido</div><p id="qrDescription">Crea señalética georreferenciada para abrir la App Usuario web y medir accesos por punto. El evento siempre utilizará el GPS real del teléfono.</p></div>
         <button id="reloadQrButton" class="secondary-button" type="button">Recargar</button>
       </div>
       <div class="qr-create-grid">
-        <label>Nombre del punto<input id="qrPointName" placeholder="Plaza principal" /></label>
-        <label>Descripción<input id="qrPointDescription" placeholder="Acceso norte / poste municipal" /></label>
+        <label>Nombre del punto<input id="qrPointName" placeholder="Acceso o punto operacional" /></label>
+        <label>Descripción<input id="qrPointDescription" placeholder="Acceso norte / punto operacional" /></label>
         <label>Latitud<input id="qrPointLatitude" type="number" step="0.000001" placeholder="-33.123456" /></label>
         <label>Longitud<input id="qrPointLongitude" type="number" step="0.000001" placeholder="-70.123456" /></label>
         <button id="createQrButton" class="success-button" type="button">Generar punto QR</button>
@@ -289,22 +289,22 @@
 
     <section class="card platform-card" id="communicationsAdminCard" hidden>
       <div class="create-card-header">
-        <div><div class="section-title">Comunicaciones a vecinos</div><p>Publica anuncios municipales o avisos individuales cuando el módulo esté contratado.</p></div>
+        <div><div class="section-title" id="communicationsTitle">Comunicaciones a usuarios</div><p id="communicationsDescription">Publica anuncios generales o avisos individuales cuando el módulo esté contratado.</p></div>
         <button id="reloadAnnouncementsButton" class="secondary-button" type="button">Recargar</button>
       </div>
       <div id="communicationsLicenseNotice" class="communications-license-notice">Consultando licencia...</div>
       <div id="announcementEditor" class="announcement-editor">
         <div class="edit-grid">
-          <label>Título<input id="announcementTitle" maxlength="180" placeholder="Corte de tránsito programado" /></label>
-          <label>Audiencia<select id="announcementAudience"><option value="BROADCAST">Toda la comuna</option><option value="PERSONAL">Vecino específico</option></select></label>
-          <label id="announcementTargetField" hidden>Vecino destinatario<select id="announcementTargetUser"><option value="">Seleccionar vecino</option></select></label>
+          <label>Título<input id="announcementTitle" maxlength="180" placeholder="Información importante para la organización" /></label>
+          <label>Audiencia<select id="announcementAudience"><option id="broadcastAudienceOption" value="BROADCAST">Toda la organización</option><option id="personalAudienceOption" value="PERSONAL">Usuario específico</option></select></label>
+          <label id="announcementTargetField" hidden><span id="announcementTargetLabel">Usuario destinatario</span><select id="announcementTargetUser"><option value="">Seleccionar usuario</option></select></label>
           <label>Contenido<select id="announcementMediaType"><option value="NONE">Sólo texto</option><option value="IMAGE">Imagen</option><option value="VIDEO">Video</option></select></label>
           <label>URL multimedia HTTPS<input id="announcementMediaUrl" type="url" placeholder="YouTube, Vimeo o archivo directo HTTPS" /></label>
           <label>Estado<select id="announcementStatus"><option value="DRAFT">Borrador</option><option value="PUBLISHED">Publicado</option></select></label>
           <label>Inicio<input id="announcementStartsAt" type="datetime-local" /></label>
           <label>Término<input id="announcementEndsAt" type="datetime-local" /></label>
         </div>
-        <label>Mensaje<textarea id="announcementBody" maxlength="5000" placeholder="Información que verá el vecino..."></textarea></label>
+        <label>Mensaje<textarea id="announcementBody" maxlength="5000" placeholder="Información que verá la persona destinataria..."></textarea></label>
         <div class="toolbar"><button id="createAnnouncementButton" class="success-button" type="button">Crear anuncio</button><span id="announcementsStatus" class="summary"></span></div>
       </div>
       <div id="announcementsList" class="announcements-list"></div>
@@ -317,6 +317,10 @@
           <p>Gestión integrada de accidentes, inspecciones, controles críticos, acciones, conducta preventiva y alertas de cámaras.</p>
         </div>
         <button id="reloadSafetyButton" class="secondary-button" type="button">Actualizar</button>
+      </div>
+      <div class="safety-module-explanation" id="safetyModuleExplanation">
+        <strong>¿Qué gestiona este módulo?</strong>
+        <p>Complementa la respuesta de emergencias con gestión preventiva y trazabilidad: accidentes e incidentes, inspecciones, verificación de controles críticos, observaciones conductuales, acciones correctivas y eventos de cámaras con IA. Sus registros alimentan los indicadores de Seguridad Operacional; no generan tickets ni activan alarmas automáticamente salvo que exista una integración configurada.</p>
       </div>
       <div id="safetyLicenseNotice" class="communications-license-notice">Consultando configuración...</div>
       <div id="safetyKpis" class="safety-kpis"></div>
@@ -425,8 +429,8 @@
         <div class="create-pane">
           <h3>Alta / edición sirena</h3>
           <div class="edit-grid">
-            <label>Código sirena<input id="sirenIdInput" placeholder="SIR-VINA-001" /></label>
-            <label>Nombre<input id="sirenNameInput" placeholder="Sirena Libertad / 5 Norte" /></label>
+            <label>Código sirena<input id="sirenIdInput" placeholder="SIR-001" /></label>
+            <label>Nombre<input id="sirenNameInput" placeholder="Sirena sector operacional" /></label>
             <label>Latitud<input id="sirenLatitudeInput" placeholder="-33.01895" /></label>
             <label>Longitud<input id="sirenLongitudeInput" placeholder="-71.55090" /></label>
             <label>Ubicación<input id="sirenLocationInput" placeholder="Referencia / dirección" /></label>
@@ -463,7 +467,7 @@
       <div class="create-card-header">
         <div>
           <div class="section-title">Botones SOS físicos del Centro de Control</div>
-          <p>Alta y edición de botones físicos GPS/comunitarios. Estos dispositivos generan tickets físicos cuando la funcionalidad municipal está habilitada.</p>
+          <p>Alta y edición de botones físicos GPS. Estos dispositivos generan tickets cuando la funcionalidad está habilitada para el Centro de Control.</p>
         </div>
         <button id="reloadDevicesButton" class="secondary-button">Actualizar botones</button>
       </div>
@@ -472,13 +476,13 @@
         <div class="create-pane">
           <h3>Alta / edición botón SOS físico</h3>
           <div class="edit-grid">
-            <label>Código interno<input id="deviceIdInput" placeholder="BTN-VINA-001" /></label>
-            <label>Nombre<input id="deviceNameInput" placeholder="Botón SOS 5 Norte" /></label>
+            <label>Código interno<input id="deviceIdInput" placeholder="BTN-001" /></label>
+            <label>Nombre<input id="deviceNameInput" placeholder="Botón SOS sector operacional" /></label>
             <label>Tipo
               <select id="deviceTypeInput">
                 <option value="PHYSICAL_SOS">Botón SOS físico</option>
                 <option value="GPS_TRACKER">GPS tracker</option>
-                <option value="COMMUNITY_BUTTON">Botón comunitario</option>
+                <option value="COMMUNITY_BUTTON">Botón de acceso compartido</option>
                 <option value="OTHER">Otro</option>
               </select>
             </label>
@@ -512,7 +516,7 @@
       <div class="create-card-header">
         <div>
           <div class="section-title">Crear usuarios</div>
-          <p>Agrega vecinos, resolutores, operadores o administradores desde el panel municipal.</p>
+          <p id="createUsersDescription">Agrega usuarios finales, respondedores, operadores o administradores de este Centro de Control.</p>
         </div>
         <button id="closeCreateButton" class="secondary-button">Cerrar</button>
       </div>
@@ -525,8 +529,8 @@
             <label>Teléfono<input id="newPhone" placeholder="+569XXXXXXXX" /></label>
             <label>Rol
               <select id="newRole">
-                <option value="NEIGHBOR">NEIGHBOR - Vecino</option>
-                <option value="RESOLVER">RESOLVER - Resolutor</option>
+                <option id="createNeighborRoleOption" value="NEIGHBOR">NEIGHBOR - Usuario</option>
+                <option id="createResponderRoleOption" value="RESOLVER">RESOLVER - Respondedor</option>
                 <option value="OPERATOR">OPERATOR - Operador central</option>
                 <option value="ADMIN">ADMIN - Administrador</option>
               </select>
@@ -546,7 +550,7 @@
                 <option value="false">Inactiva</option>
               </select>
             </label>
-            <label>Email<input id="newEmail" placeholder="usuario@municipio.cl" /></label>
+            <label>Email<input id="newEmail" placeholder="usuario@organizacion.cl" /></label>
             <label>RUT<input id="newRut" placeholder="11.111.111-1" /></label>
             <label>Dirección<input id="newAddress" placeholder="Dirección / sector" /></label>
             <label>Latitud<input id="newLatitude" placeholder="-33.01895" /></label>
@@ -558,10 +562,10 @@
             <div class="edit-grid">
               <label>Contacto 1<input id="newContact1Name" placeholder="Nombre contacto" /></label>
               <label>Teléfono contacto 1<input id="newContact1Phone" placeholder="+569..." /></label>
-              <label>Relación 1<input id="newContact1Rel" placeholder="Familiar, vecino, etc." /></label>
+              <label>Relación 1<input id="newContact1Rel" placeholder="Familiar, colega, etc." /></label>
               <label>Contacto 2<input id="newContact2Name" placeholder="Nombre contacto" /></label>
               <label>Teléfono contacto 2<input id="newContact2Phone" placeholder="+569..." /></label>
-              <label>Relación 2<input id="newContact2Rel" placeholder="Familiar, vecino, etc." /></label>
+              <label>Relación 2<input id="newContact2Rel" placeholder="Familiar, colega, etc." /></label>
             </div>
           </div>
 
@@ -578,11 +582,11 @@
             Formato recomendado:<br>
             <code>nombre,telefono,rol,email,rut,direccion</code><br><br>
             Ejemplo:<br>
-            <code>Juan Pérez,+56911111111,RESOLVER,juan.perez@muni.cl,,Base Municipal</code>
+            <code>Persona Ejemplo,+56911111111,RESOLVER,persona@organizacion.cl,,Base Operacional</code>
           </div>
           <label>
             Usuarios a cargar
-            <textarea id="bulkUsersText" placeholder="Juan Pérez,+56911111111,RESOLVER,juan.perez@muni.cl,,Base Municipal&#10;María González,+56922222222,RESOLVER,maria.gonzalez@muni.cl,,Base Municipal"></textarea>
+            <textarea id="bulkUsersText" placeholder="Persona Uno,+56911111111,RESOLVER,persona1@organizacion.cl,,Base Operacional&#10;Persona Dos,+56922222222,RESOLVER,persona2@organizacion.cl,,Base Operacional"></textarea>
           </label>
           <div class="toolbar">
             <button id="bulkCreateButton" class="success-button">Crear usuarios masivamente</button>
@@ -615,6 +619,6 @@
   <div id="toast" class="toast" hidden></div>
 
   <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
-  <script src="app.js?v=safety-operations-v1"></script>
+  <script src="app.js?v=vertical-config-v2"></script>
 </body>
 </html>

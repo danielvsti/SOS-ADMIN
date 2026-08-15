@@ -104,6 +104,12 @@ const NOTIFIABLE_CATEGORIES = [
 ];
 const BLOCKED_NEARBY_CATEGORIES = new Set(["VIF", "VIF_SILENT", "SILENT", "SILENT_SOS"]);
 
+const VERTICAL_UI_DEFAULTS = Object.freeze({
+  CITY: { pageTitle: "Administración municipal", usersTitle: "Control municipal", endUsers: "Vecinos", responders: "Resolutores", operators: "Operadores" },
+  MINING: { pageTitle: "Administración minera", usersTitle: "Gestión de personas de la faena", endUsers: "Trabajadores", responders: "Brigadistas", operators: "Operadores" },
+  INDUSTRY: { pageTitle: "Administración industrial", usersTitle: "Gestión de personas de la planta", endUsers: "Colaboradores", responders: "Equipos de Emergencia", operators: "Operadores" }
+});
+
 const DEFAULT_NEIGHBOR_EMERGENCY_CATEGORIES = [
   { type: "SOS_MANUAL", title: "SOS General", icon: "🚨", color: "#ef4444", priority: 1, enabled: true, order: 10 },
   { type: "MEDICAL", title: "Médica", icon: "🚑", color: "#22c55e", priority: 1, enabled: true, order: 20 },
@@ -116,6 +122,82 @@ const DEFAULT_NEIGHBOR_EMERGENCY_CATEGORIES = [
 ];
 
 let neighborCategoryDraft = [];
+
+function effectiveExperience(settings = state.platformSettings || {}) {
+  const vertical = ["CITY", "MINING", "INDUSTRY"].includes(String(settings.vertical || "").toUpperCase())
+    ? String(settings.vertical).toUpperCase()
+    : "CITY";
+  const ui = VERTICAL_UI_DEFAULTS[vertical];
+  const terminology = {
+    endUser: "Usuario",
+    responder: "Respondedor",
+    operator: "Operador",
+    incident: "Incidente",
+    organization: "Organización",
+    zone: "Zona",
+    controlCenter: "Centro de Control",
+    ...(settings.terminology || {})
+  };
+  return { vertical, ui, terminology, organizationName: settings.branding?.organizationName || terminology.organization };
+}
+
+function setText(id, value) {
+  const element = document.getElementById(id);
+  if (element) element.textContent = value;
+}
+
+function applyVerticalExperience(settings = {}) {
+  const { vertical, ui, terminology, organizationName } = effectiveExperience(settings);
+  const incidentPlural = vertical === "CITY" ? "reportes ciudadanos" : "reportes operacionales";
+  const zoneLower = String(terminology.zone || "zona").toLocaleLowerCase("es");
+
+  document.title = `QUELTU · ${ui.pageTitle}`;
+  setText("adminPageTitle", organizationName ? `Administración · ${organizationName}` : ui.pageTitle);
+  setText("usersSectionTitle", ui.usersTitle);
+  setText("roleNeighborOption", ui.endUsers);
+  setText("roleResponderOption", ui.responders);
+  setText("roleOperatorOption", ui.operators);
+  setText("createUsersDescription", `Agrega ${ui.endUsers.toLocaleLowerCase("es")}, ${ui.responders.toLocaleLowerCase("es")}, ${ui.operators.toLocaleLowerCase("es")} o administradores de este ${terminology.controlCenter}.`);
+  setText("createNeighborRoleOption", `NEIGHBOR · ${terminology.endUser}`);
+  setText("createResponderRoleOption", `RESOLVER · ${terminology.responder}`);
+  setText("platformConfigIntro", `Define las políticas funcionales de este ${terminology.controlCenter}. Se aplican al mapa, tickets, llamadas, dispositivos y ${incidentPlural}.`);
+  setText("mobileAppFeatureLabel", `App ${terminology.endUser} habilitada`);
+  setText("responderAppFeatureLabel", `App ${terminology.responder} habilitada`);
+  setText("multiReportsFeatureLabel", `Agrupar múltiples ${incidentPlural}`);
+  setText("responderAutoAssignLabel", `Autoasignación de ${ui.responders.toLocaleLowerCase("es")}`);
+  setText("userCategoriesTitle", `Categorías visibles en App ${terminology.endUser}`);
+  setText("userCategoriesDescription", `QUELTU SuperAdmin administra el catálogo maestro. Aquí habilitas, renombras y ordenas únicamente las categorías aplicables a ${vertical === "CITY" ? "Ciudad" : vertical === "MINING" ? "Minería" : "Industria"}.`);
+  setText("userCategoriesHint", `Debe quedar al menos una categoría activa. Las categorías desactivadas se ocultan en la App ${terminology.endUser} y el backend rechaza envíos manipulados.`);
+  setText("physicalButtonsDescription", `Dispositivos físicos de emergencia instalados en la ${zoneLower} que generan un ticket directo sin pasar por la app.`);
+  setText("operatorDirectoryTitle", `Directorio de emergencia del ${terminology.operator}`);
+  const emergencyLabels = vertical === "MINING"
+    ? ["Emergencia médica / Enfermería", "Brigada contra incendios", "Seguridad de faena"]
+    : vertical === "INDUSTRY"
+      ? ["Emergencia médica / Enfermería", "Brigada contra incendios", "Seguridad de planta"]
+      : ["Ambulancia / SAMU", "Bomberos", "Carabineros"];
+  setText("medicalEmergencyLabel", emergencyLabels[0]);
+  setText("fireEmergencyLabel", emergencyLabels[1]);
+  setText("securityEmergencyLabel", emergencyLabels[2]);
+  setText("organizationSecurityLabel", `Seguridad · ${organizationName}`);
+  setText("responderGpsLabel", `GPS ${terminology.responder.toLocaleLowerCase("es")} máximo válido (segundos)`);
+  setText("nearbyNotificationsTitle", `Notificaciones a ${ui.endUsers.toLocaleLowerCase("es")} cercanos`);
+  setText("nearbyNotificationsLabel", `Enviar notificación a ${ui.endUsers.toLocaleLowerCase("es")} cercanos ante un evento activo`);
+  setText("brandingDescription", `Define la identidad visual de ${organizationName} que verá el ${terminology.operator.toLocaleLowerCase("es")} en la plataforma.`);
+  setText("organizationLogoTitle", `Logo · ${organizationName}`);
+  setText("organizationLogoUploadLabel", `Subir logo de ${organizationName}`);
+  setText("organizationLogoPreviewTitle", `Preview · ${organizationName}`);
+  setText("qrDescription", `Crea señalética georreferenciada para abrir la App ${terminology.endUser} web y medir accesos por punto. El ${terminology.incident.toLocaleLowerCase("es")} utilizará el GPS real del teléfono.`);
+  setText("communicationsTitle", `Comunicaciones a ${ui.endUsers.toLocaleLowerCase("es")}`);
+  setText("communicationsDescription", `Publica anuncios de ${organizationName} o avisos individuales cuando el módulo esté contratado.`);
+  setText("broadcastAudienceOption", vertical === "CITY" ? `Toda la ${zoneLower}` : `Toda la organización`);
+  setText("personalAudienceOption", `${terminology.endUser} específico`);
+  setText("announcementTargetLabel", `${terminology.endUser} destinatario`);
+
+  const safetyEnabled = settings.safety_modules?.enabled === true;
+  const safetyTab = document.getElementById("safetyAdminTab");
+  if (safetyTab) safetyTab.hidden = !safetyEnabled;
+  if (!safetyEnabled && state.activeAdminSection === "safety") setAdminSection("platform");
+}
 
 function normalizeNeighborCategories(rawCategories = []) {
   const received = Array.isArray(rawCategories)
@@ -449,7 +531,8 @@ function adminSectionCards() {
 }
 
 function setAdminSection(section) {
-  state.activeAdminSection = section || "users";
+  const safetyEnabled = state.platformSettings?.safety_modules?.enabled === true;
+  state.activeAdminSection = section === "safety" && !safetyEnabled ? "platform" : (section || "users");
   const cards = adminSectionCards();
   Object.entries(cards).forEach(([key, nodes]) => {
     nodes.forEach((node) => {
@@ -500,7 +583,8 @@ function renderAnnouncementTargets() {
   const select = document.getElementById("announcementTargetUser");
   if (!select) return;
   const neighbors = (state.users || []).filter(user => String(user.role).toUpperCase() === "NEIGHBOR");
-  select.innerHTML = '<option value="">Seleccionar vecino</option>' + neighbors.map(user => `<option value="${escapeHtml(user.id)}">${escapeHtml(user.full_name || user.phone)} · ${escapeHtml(user.phone || "")}</option>`).join("");
+  const { terminology } = effectiveExperience();
+  select.innerHTML = `<option value="">Seleccionar ${escapeHtml(terminology.endUser.toLocaleLowerCase("es"))}</option>` + neighbors.map(user => `<option value="${escapeHtml(user.id)}">${escapeHtml(user.full_name || user.phone)} · ${escapeHtml(user.phone || "")}</option>`).join("");
 }
 
 function renderAnnouncements() {
@@ -508,6 +592,8 @@ function renderAnnouncements() {
   const editor = document.getElementById("announcementEditor");
   const notice = document.getElementById("communicationsLicenseNotice");
   const license = state.communicationsLicense || {};
+  const { terminology, vertical } = effectiveExperience();
+  const broadcastLabel = vertical === "CITY" ? `Toda la ${terminology.zone.toLocaleLowerCase("es")}` : "Toda la organización";
   if (notice) {
     notice.textContent = license.enabled ? `✅ Módulo contratado · máximo ${license.max_active_announcements || 20} anuncios activos` : "🔒 Módulo de Comunicaciones no contratado. Solicita habilitación a VS&TI.";
     notice.dataset.enabled = String(license.enabled === true);
@@ -517,7 +603,7 @@ function renderAnnouncements() {
   list.innerHTML = (state.announcements || []).map(item => `
     <article class="announcement-admin-card">
       <div><strong>${escapeHtml(item.title)}</strong><div>${escapeHtml(item.body || "Sin texto")}</div></div>
-      <div class="announcement-admin-meta">${item.audience_type === "PERSONAL" ? `👤 ${escapeHtml(item.target_user_name || item.target_user_phone || "Vecino")}` : "🏛️ Toda la comuna"} · ${escapeHtml(item.status)} · 👁 ${Number(item.opened_count || 0)}</div>
+      <div class="announcement-admin-meta">${item.audience_type === "PERSONAL" ? `👤 ${escapeHtml(item.target_user_name || item.target_user_phone || terminology.endUser)}` : `🏢 ${escapeHtml(broadcastLabel)}`} · ${escapeHtml(item.status)} · 👁 ${Number(item.opened_count || 0)}</div>
       ${item.media_url ? `<a href="${escapeHtml(item.media_url)}" target="_blank" rel="noopener">Ver contenido ${escapeHtml(item.media_type)}</a>` : ""}
       <div class="toolbar"><button class="secondary-button" type="button" data-announcement-status="${escapeHtml(item.id)}" data-next-status="${item.status === "PUBLISHED" ? "ARCHIVED" : "PUBLISHED"}">${item.status === "PUBLISHED" ? "Archivar" : "Publicar"}</button></div>
     </article>`).join("") || '<div class="empty-state">Todavía no hay anuncios configurados.</div>';
@@ -644,10 +730,15 @@ function selectedNearbyCategories() {
 }
 
 function setNearbyCategories(categories = []) {
+  const applicableCategories = new Set(neighborCategoryDraft
+    .filter(category => category.enabled !== false && category.allow_nearby_notifications === true && !category.sensitive)
+    .map(category => String(category.type || "").trim().toUpperCase())
+    .filter(Boolean));
   const clean = [...new Set((categories || [])
     .map(item => String(item || "").trim().toUpperCase())
     .filter(Boolean)
-    .filter(code => !BLOCKED_NEARBY_CATEGORIES.has(code)))];
+    .filter(code => !BLOCKED_NEARBY_CATEGORIES.has(code))
+    .filter(code => !applicableCategories.size || applicableCategories.has(code)))];
   const input = document.getElementById("cfgNearbyCategories");
   if (input) input.value = clean.join(",");
   renderNearbyCategoryChips(clean);
@@ -656,7 +747,11 @@ function setNearbyCategories(categories = []) {
 function renderNearbyCategoryChips(selected = selectedNearbyCategories()) {
   if (!els.nearbyCategoryChips) return;
   const selectedSet = new Set(selected);
-  els.nearbyCategoryChips.innerHTML = NOTIFIABLE_CATEGORIES.map(category => `
+  const configuredCategories = neighborCategoryDraft
+    .filter(category => category.enabled !== false && category.allow_nearby_notifications === true && !category.sensitive)
+    .map(category => ({ code: category.type, label: categoryDisplayTitle(category) }));
+  const categories = configuredCategories.length ? configuredCategories : NOTIFIABLE_CATEGORIES;
+  els.nearbyCategoryChips.innerHTML = categories.map(category => `
     <button type="button" class="category-chip ${selectedSet.has(category.code) ? "active" : ""}" data-category="${escapeHtml(category.code)}">
       ${selectedSet.has(category.code) ? "✓ " : ""}${escapeHtml(category.label)}
     </button>
@@ -703,6 +798,8 @@ function renderPlatformSettings(settings = {}) {
   const operatorTools = settings.operator_tools || {};
   const safetyModules = settings.safety_modules || {};
 
+  applyVerticalExperience(settings);
+
   document.getElementById("cfgVertical").value = settings.vertical || "CITY";
   setBool("cfgSafetyEnabled", safetyModules.enabled === true);
 
@@ -728,12 +825,12 @@ function renderPlatformSettings(settings = {}) {
 
   setBool("cfgNearbyNotifications", np.nearby_neighbor_notifications_enabled === true);
   document.getElementById("cfgNearbyRadius").value = np.radius_meters ?? 300;
-  setNearbyCategories(np.categories || ["FIRE", "TRAFFIC_ACCIDENT", "URBAN_RISK"]);
 
   document.getElementById("cfgDedupRadius").value = ip.dedup_radius_meters ?? 120;
   document.getElementById("cfgDedupWindow").value = ip.dedup_window_minutes ?? 120;
   document.getElementById("cfgResolverGpsAge").value = rp.max_location_age_seconds ?? 180;
   renderNeighborCategories(neighborApp.emergency_categories || DEFAULT_NEIGHBOR_EMERGENCY_CATEGORIES);
+  setNearbyCategories(np.categories || neighborCategoryDraft.filter(category => category.allow_nearby_notifications).map(category => category.type));
   const emergencyByKey = new Map((operatorTools.emergency_contacts || []).map(contact => [contact.key, contact]));
   setBool("cfgOperatorDashboard", (operatorTools.dashboard_roles || []).includes("OPERATOR"));
   document.getElementById("cfgEmergencyAmbulance").value = emergencyByKey.get("AMBULANCE")?.phone || "131";
@@ -746,6 +843,7 @@ function renderPlatformSettings(settings = {}) {
 function collectPlatformSettings() {
   const sirensEnabled = boolValue("cfgSirens");
   const voiceEnabled = boolValue("cfgSecureVoice");
+  const experience = effectiveExperience();
 
   return {
     vertical: state.platformSettings?.vertical || document.getElementById("cfgVertical").value,
@@ -794,10 +892,10 @@ function collectPlatformSettings() {
     operator_tools: {
       dashboard_roles: boolValue("cfgOperatorDashboard") ? ["OPERATOR", "ADMIN", "SUPER_ADMIN"] : ["ADMIN", "SUPER_ADMIN"],
       emergency_contacts: [
-        { key: "AMBULANCE", label: "Ambulancia / SAMU", phone: document.getElementById("cfgEmergencyAmbulance").value.trim(), icon: "🚑", enabled: true, order: 10 },
-        { key: "FIRE_DEPARTMENT", label: "Bomberos", phone: document.getElementById("cfgEmergencyFire").value.trim(), icon: "🚒", enabled: true, order: 20 },
-        { key: "POLICE", label: "Carabineros", phone: document.getElementById("cfgEmergencyPolice").value.trim(), icon: "🚓", enabled: true, order: 30 },
-        { key: "MUNICIPAL_SECURITY", label: "Seguridad Municipal", phone: document.getElementById("cfgEmergencyMunicipal").value.trim(), icon: "🛡️", enabled: Boolean(document.getElementById("cfgEmergencyMunicipal").value.trim()), order: 40 }
+        { key: "AMBULANCE", label: document.getElementById("medicalEmergencyLabel")?.textContent || "Emergencia médica", phone: document.getElementById("cfgEmergencyAmbulance").value.trim(), icon: "🚑", enabled: true, order: 10 },
+        { key: "FIRE_DEPARTMENT", label: document.getElementById("fireEmergencyLabel")?.textContent || "Respuesta contra incendios", phone: document.getElementById("cfgEmergencyFire").value.trim(), icon: "🚒", enabled: true, order: 20 },
+        { key: "POLICE", label: document.getElementById("securityEmergencyLabel")?.textContent || "Seguridad", phone: document.getElementById("cfgEmergencyPolice").value.trim(), icon: "🚓", enabled: true, order: 30 },
+        { key: "MUNICIPAL_SECURITY", label: `Seguridad · ${experience.organizationName}`, phone: document.getElementById("cfgEmergencyMunicipal").value.trim(), icon: "🛡️", enabled: Boolean(document.getElementById("cfgEmergencyMunicipal").value.trim()), order: 40 }
       ]
     },
     neighbor_app: {
@@ -1014,7 +1112,8 @@ async function loadQrPoints() {
 
 function renderQrPoints() {
   if (!state.qrPoints.length) {
-    els.qrPointsList.innerHTML = '<div class="empty-state">Aún no hay puntos QR para esta comuna.</div>';
+    const { terminology } = effectiveExperience();
+    els.qrPointsList.innerHTML = `<div class="empty-state">Aún no hay puntos QR para esta ${escapeHtml(terminology.zone.toLocaleLowerCase("es"))}.</div>`;
     return;
   }
   els.qrPointsList.innerHTML = state.qrPoints.map(point => `
@@ -1074,7 +1173,8 @@ function printQrPoint(id) {
   const popup = window.open("", "_blank");
   if (!popup) return toast("Habilita ventanas emergentes para imprimir");
   popup.opener = null;
-  popup.document.write(`<!doctype html><html><head><title>QR ${escapeHtml(point.name)}</title><style>body{font-family:Arial;text-align:center;padding:42px;color:#0f172a}.sign{border:5px solid #0f172a;border-radius:28px;padding:30px;max-width:620px;margin:auto}h1{font-size:38px}p{font-size:22px}img{width:360px;height:360px}.small{font-size:14px;color:#475569}</style></head><body><div class="sign"><h1>¿Necesitas ayuda?</h1><p>Escanea este código para reportar una emergencia a la Municipalidad.</p><img src="${image}"><h2>${escapeHtml(point.name)}</h2><div class="small">Código ${escapeHtml(point.code)} · La ubicación del evento se obtiene desde el GPS del teléfono al enviar el SOS.</div></div><script>onload=()=>print()<\/script></body></html>`);
+  const { terminology, organizationName } = effectiveExperience();
+  popup.document.write(`<!doctype html><html><head><title>QR ${escapeHtml(point.name)}</title><style>body{font-family:Arial;text-align:center;padding:42px;color:#0f172a}.sign{border:5px solid #0f172a;border-radius:28px;padding:30px;max-width:620px;margin:auto}h1{font-size:38px}p{font-size:22px}img{width:360px;height:360px}.small{font-size:14px;color:#475569}</style></head><body><div class="sign"><h1>¿Necesitas ayuda?</h1><p>Escanea este código para reportar un ${escapeHtml(terminology.incident.toLocaleLowerCase("es"))} a ${escapeHtml(organizationName)}.</p><img src="${image}"><h2>${escapeHtml(point.name)}</h2><div class="small">Código ${escapeHtml(point.code)} · La ubicación del evento se obtiene desde el GPS del teléfono al enviar el reporte.</div></div><script>onload=()=>print()<\/script></body></html>`);
   popup.document.close();
 }
 
@@ -1185,7 +1285,7 @@ async function saveBranding() {
     if (!res.ok || data.status !== "ok") throw new Error(data.message || "No fue posible guardar branding");
     renderBranding(data.control_center);
     if (els.brandingStatus) els.brandingStatus.textContent = "Branding guardado";
-    toast("Branding municipal guardado");
+    toast("Branding de la organización guardado");
   } catch (error) {
     console.error(error);
     if (els.brandingStatus) els.brandingStatus.textContent = error.message;
@@ -1460,10 +1560,22 @@ async function deletePhysicalDevice(id) {
 
 function userBadges(user) {
   return `
-    <span class="badge role-${escapeHtml(user.role)}">${escapeHtml(user.role)}</span>
+    <span class="badge role-${escapeHtml(user.role)}">${escapeHtml(roleDisplayLabel(user.role))}</span>
     <span class="badge status-${escapeHtml(user.validation_status)}">${escapeHtml(user.validation_status || "-")}</span>
     <span class="badge ${user.is_active ? "account-active" : "account-inactive"}">${user.is_active ? "Activo" : "Inactivo"}</span>
   `;
+}
+
+function roleDisplayLabel(role) {
+  const normalized = String(role || "").trim().toUpperCase();
+  const { terminology } = effectiveExperience();
+  return {
+    NEIGHBOR: terminology.endUser,
+    RESOLVER: terminology.responder,
+    OPERATOR: terminology.operator,
+    ADMIN: "Administrador",
+    SUPER_ADMIN: "SuperAdmin"
+  }[normalized] || normalized || "-";
 }
 
 function buildUsersUrl() {
@@ -1613,7 +1725,7 @@ function renderDetail() {
     <div class="detail-section">
       <h3>Acciones rápidas</h3>
       <div class="action-grid">
-        <button class="success-button" onclick="updateValidation('VALIDATED')">Validar vecino</button>
+        <button class="success-button" onclick="updateValidation('VALIDATED')">Validar ${escapeHtml(roleDisplayLabel(user.role).toLocaleLowerCase("es"))}</button>
         <button class="warning-button" onclick="updateValidation('PROVISIONAL_ACTIVE')">Provisional</button>
         <button class="danger-button" onclick="updateValidation('REJECTED')">Rechazar</button>
         <button class="secondary-button" onclick="setActive(${user.is_active ? "false" : "true"})">
@@ -1627,7 +1739,8 @@ function renderDetail() {
       <h3>Ficha</h3>
       <div class="info-grid">
         <div class="info-item"><div class="info-label">ID</div><div class="info-value">${escapeHtml(user.id)}</div></div>
-        <div class="info-item"><div class="info-label">Rol</div><div class="info-value">${escapeHtml(user.role)}</div></div>
+        <div class="info-item"><div class="info-label">Rol visible</div><div class="info-value">${escapeHtml(roleDisplayLabel(user.role))}</div></div>
+        <div class="info-item"><div class="info-label">Código técnico</div><div class="info-value">${escapeHtml(user.role)}</div></div>
         <div class="info-item"><div class="info-label">RUT</div><div class="info-value">${escapeHtml(user.rut || "-")}</div></div>
         <div class="info-item"><div class="info-label">Email</div><div class="info-value">${escapeHtml(user.email || "-")}</div></div>
         <div class="info-item"><div class="info-label">Dirección</div><div class="info-value">${escapeHtml(user.declared_address || "-")}</div></div>
@@ -1656,7 +1769,7 @@ function renderDetail() {
       <h3>Rol operacional</h3>
       <div class="toolbar">
         <select id="roleSelect">
-          ${roleOptions().map(role => `<option value="${role}" ${role === user.role ? "selected" : ""}>${role}</option>`).join("")}
+          ${roleOptions().map(role => `<option value="${role}" ${role === user.role ? "selected" : ""}>${escapeHtml(roleDisplayLabel(role))} · ${role}</option>`).join("")}
         </select>
         <button onclick="saveRole()">Cambiar rol</button>
       </div>
@@ -1999,11 +2112,15 @@ function renderBulkResult(data, invalid = []) {
 }
 
 function loadBulkExample() {
+  const { vertical, terminology } = effectiveExperience();
+  const domain = vertical === "MINING" ? "empresa-minera.cl" : vertical === "INDUSTRY" ? "industria.cl" : "municipio.cl";
+  const base = vertical === "MINING" ? "Faena Principal" : vertical === "INDUSTRY" ? "Planta Principal" : "Base Municipal";
+  const center = vertical === "MINING" ? "Centro de Operaciones" : vertical === "INDUSTRY" ? "Sala de Control" : "Central Municipal";
   els.bulkUsersText.value = [
-    "Juan Pérez,+56911111111,RESOLVER,juan.perez@municipio.cl,,Base Municipal",
-    "María González,+56922222222,RESOLVER,maria.gonzalez@municipio.cl,,Base Municipal",
-    "Operador Central 01,+56933333333,OPERATOR,operador01@municipio.cl,,Central Municipal",
-    "Administrador Municipal,+56944444444,ADMIN,admin@municipio.cl,,Central Municipal"
+    `Persona ${terminology.responder} 01,+56911111111,RESOLVER,respondedor01@${domain},,${base}`,
+    `Persona ${terminology.endUser} 01,+56922222222,NEIGHBOR,usuario01@${domain},,${base}`,
+    `Persona ${terminology.operator} 01,+56933333333,OPERATOR,operador01@${domain},,${center}`,
+    `Administrador 01,+56944444444,ADMIN,admin@${domain},,${center}`
   ].join("\n");
 }
 
