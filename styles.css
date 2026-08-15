@@ -2,6 +2,32 @@
   box-sizing: border-box;
 }
 
+/* QUELTU Seguridad Operacional */
+.safety-admin-card { border-top: 5px solid #e4473f; }
+.safety-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); gap: 12px; margin: 18px 0; }
+.safety-kpi { padding: 16px; border: 1px solid #dce3ec; border-radius: 18px; background: #f8fafc; display: grid; gap: 8px; }
+.safety-kpi span { color: #64748b; font-size: .8rem; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; }
+.safety-kpi strong { color: #111827; font-size: 1.8rem; }
+.safety-kpi.alert { background: #fff1f0; border-color: #fecaca; }
+.safety-kpi.alert strong { color: #b91c1c; }
+.safety-editor-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.safety-form { border: 1px solid #dce3ec; border-radius: 20px; padding: 18px; background: linear-gradient(150deg, #fff, #f8fafc); display: grid; gap: 12px; align-content: start; }
+.safety-form h3 { margin: 0 0 4px; color: #111827; }
+.safety-form label { display: grid; gap: 6px; font-weight: 750; color: #334155; }
+.safety-form input, .safety-form select, .safety-form textarea { width: 100%; }
+.safety-lists { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 20px; }
+.safety-list { border: 1px solid #dce3ec; border-radius: 20px; padding: 16px; background: #fff; }
+.safety-list h3 { margin: 0 0 10px; }
+.safety-list article { padding: 11px 0; border-top: 1px solid #eef2f7; display: grid; gap: 4px; }
+.safety-list article:first-of-type { border-top: 0; }
+.safety-list article span, .safety-list article small { color: #64748b; }
+.safety-form :disabled { cursor: not-allowed; opacity: .55; }
+.safety-inline-action { margin-top: 8px; padding: 8px 12px; width: max-content; font-size: .82rem; }
+.compact-empty { min-height: auto; padding: 18px 4px; }
+@media (max-width: 980px) {
+  .safety-editor-grid, .safety-lists { grid-template-columns: 1fr; }
+}
+
 [hidden] {
   display: none !important;
 }

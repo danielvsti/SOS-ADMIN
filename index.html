@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#151A1D" />
   <link rel="icon" href="queltu-symbol.png" type="image/png" />
   <link rel="manifest" href="manifest.json" />
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="styles.css?v=safety-operations-v1" />
   <link rel="stylesheet" href="queltu-brand.css?v=20260716-2" />
 </head>
 <body>
@@ -52,6 +52,7 @@
       <button class="admin-tab" type="button" data-section="devices"><span>🆘</span> Botones SOS físicos</button>
       <button class="admin-tab" type="button" data-section="qr"><span>▦</span> Puntos QR</button>
       <button class="admin-tab" type="button" data-section="communications"><span>📢</span> Comunicaciones</button>
+      <button class="admin-tab" type="button" data-section="safety"><span>⛑</span> Seguridad operacional</button>
     </nav>
     <section class="card filters-card" id="userFiltersCard">
       <div class="section-title">Control municipal</div>
@@ -105,6 +106,18 @@
       </div>
 
       <div class="settings-grid">
+        <div class="settings-pane">
+          <h3>Perfil operacional</h3>
+          <label>Vertical
+            <select id="cfgVertical" disabled>
+              <option value="CITY">Ciudad / Municipalidad</option>
+              <option value="MINING">Minería</option>
+              <option value="INDUSTRY">Industria</option>
+            </select>
+          </label>
+          <label class="check-row"><input id="cfgSafetyEnabled" type="checkbox" disabled /> Módulo Seguridad Operacional contratado</label>
+          <div class="hint-text">La vertical y la licencia son administradas por QUELTU SuperAdmin. Este Centro de Control conserva sus propias políticas, usuarios y datos.</div>
+        </div>
         <div class="settings-pane">
           <h3>Funcionalidades</h3>
           <label class="check-row"><input id="cfgMobileApp" type="checkbox" /> App Vecino habilitada</label>
@@ -295,6 +308,107 @@
         <div class="toolbar"><button id="createAnnouncementButton" class="success-button" type="button">Crear anuncio</button><span id="announcementsStatus" class="summary"></span></div>
       </div>
       <div id="announcementsList" class="announcements-list"></div>
+    </section>
+
+    <section class="card platform-card safety-admin-card" id="safetyManagementCard" hidden>
+      <div class="create-card-header">
+        <div>
+          <div class="section-title">Seguridad Operacional</div>
+          <p>Gestión integrada de accidentes, inspecciones, controles críticos, acciones, conducta preventiva y alertas de cámaras.</p>
+        </div>
+        <button id="reloadSafetyButton" class="secondary-button" type="button">Actualizar</button>
+      </div>
+      <div id="safetyLicenseNotice" class="communications-license-notice">Consultando configuración...</div>
+      <div id="safetyKpis" class="safety-kpis"></div>
+
+      <div class="safety-editor-grid">
+        <form class="safety-form" id="safetyIncidentForm">
+          <h3>⚠️ Registrar accidente / incidente</h3>
+          <label>Título<input id="safetyIncidentTitle" maxlength="180" required placeholder="Caída de persona en nivel 850" /></label>
+          <div class="edit-grid">
+            <label>Tipo<select id="safetyIncidentType"><option>ACCIDENT</option><option>NEAR_MISS</option><option>OCCUPATIONAL_HEALTH</option><option>ENVIRONMENTAL</option></select></label>
+            <label>Severidad<select id="safetyIncidentSeverity"><option>LOW</option><option selected>MEDIUM</option><option>HIGH</option><option>CRITICAL</option></select></label>
+            <label>Área / faena<input id="safetyIncidentArea" placeholder="Mina / Planta / Taller" /></label>
+            <label>Fecha y hora<input id="safetyIncidentOccurredAt" type="datetime-local" /></label>
+          </div>
+          <label>Descripción<textarea id="safetyIncidentDescription" class="short-textarea" placeholder="Qué ocurrió y consecuencias inmediatas"></textarea></label>
+          <button class="success-button" type="submit">Registrar incidente</button>
+        </form>
+
+        <form class="safety-form" id="safetyInspectionForm">
+          <h3>🔎 Registrar inspección</h3>
+          <label>Título<input id="safetyInspectionTitle" maxlength="180" required placeholder="Inspección preoperacional cargador" /></label>
+          <div class="edit-grid">
+            <label>Tipo<input id="safetyInspectionType" value="FIELD_INSPECTION" /></label>
+            <label>Área / faena<input id="safetyInspectionArea" /></label>
+            <label>Estado<select id="safetyInspectionStatus"><option>PLANNED</option><option>IN_PROGRESS</option><option selected>COMPLETED</option></select></label>
+            <label>Resultado<select id="safetyInspectionResult"><option>COMPLIANT</option><option>PARTIAL</option><option>NON_COMPLIANT</option><option>NOT_EVALUATED</option></select></label>
+            <label>Puntaje 0–100<input id="safetyInspectionScore" type="number" min="0" max="100" /></label>
+          </div>
+          <label>Notas<textarea id="safetyInspectionNotes" class="short-textarea"></textarea></label>
+          <button class="success-button" type="submit">Guardar inspección</button>
+        </form>
+
+        <form class="safety-form" id="safetyControlForm">
+          <h3>🛡️ Control crítico</h3>
+          <div class="edit-grid">
+            <label>Código<input id="safetyControlCode" required placeholder="CC-VEH-01" /></label>
+            <label>Peligro<input id="safetyControlHazard" required placeholder="Interacción equipo-persona" /></label>
+          </div>
+          <label>Nombre<input id="safetyControlName" required placeholder="Segregación efectiva" /></label>
+          <label>Pregunta de verificación<textarea id="safetyControlQuestion" class="short-textarea" required placeholder="¿La segregación física está instalada y operativa?"></textarea></label>
+          <button class="success-button" type="submit">Guardar control</button>
+        </form>
+
+        <form class="safety-form" id="safetyVerificationForm">
+          <h3>☑️ Verificar control crítico</h3>
+          <label>Control<select id="safetyVerificationControl" required><option value="">Seleccionar control</option></select></label>
+          <div class="edit-grid">
+            <label>Resultado<select id="safetyVerificationResult"><option>EFFECTIVE</option><option>FAILED</option><option>NOT_APPLICABLE</option></select></label>
+            <label>Área / faena<input id="safetyVerificationArea" /></label>
+          </div>
+          <label>Evidencia / observación<textarea id="safetyVerificationNotes" class="short-textarea" placeholder="Condición observada y evidencia disponible"></textarea></label>
+          <button class="success-button" type="submit">Registrar verificación</button>
+        </form>
+
+        <form class="safety-form" id="safetyBehaviorForm">
+          <h3>👷 Observación conductual</h3>
+          <div class="edit-grid">
+            <label>Tipo<select id="safetyBehaviorType"><option>SAFE</option><option>AT_RISK</option></select></label>
+            <label>Categoría<input id="safetyBehaviorCategory" required placeholder="Uso de EPP" /></label>
+            <label>Área / faena<input id="safetyBehaviorArea" /></label>
+          </div>
+          <label>Observación<textarea id="safetyBehaviorDescription" class="short-textarea" required></textarea></label>
+          <label>Retroalimentación<textarea id="safetyBehaviorFeedback" class="short-textarea"></textarea></label>
+          <button class="success-button" type="submit">Registrar observación</button>
+        </form>
+
+        <form class="safety-form" id="safetyActionForm">
+          <h3>✅ Acción correctiva / preventiva</h3>
+          <label>Título<input id="safetyActionTitle" required placeholder="Reponer barrera física" /></label>
+          <div class="edit-grid">
+            <label>Prioridad<select id="safetyActionPriority"><option>LOW</option><option selected>MEDIUM</option><option>HIGH</option><option>CRITICAL</option></select></label>
+            <label>Responsable<input id="safetyActionOwner" /></label>
+            <label>Fecha compromiso<input id="safetyActionDueDate" type="date" /></label>
+          </div>
+          <label>Descripción<textarea id="safetyActionDescription" class="short-textarea"></textarea></label>
+          <button class="success-button" type="submit">Crear acción</button>
+        </form>
+
+        <form class="safety-form" id="safetyCameraForm">
+          <h3>📹 Evento IA de cámara (demo)</h3>
+          <div class="edit-grid">
+            <label>Evento<input id="safetyCameraEventType" required value="PPE_NON_COMPLIANCE" /></label>
+            <label>Cámara<input id="safetyCameraName" placeholder="CAM-PLANTA-04" /></label>
+            <label>Área<input id="safetyCameraArea" /></label>
+            <label>Confianza 0–1<input id="safetyCameraConfidence" type="number" min="0" max="1" step="0.01" value="0.94" /></label>
+          </div>
+          <label>URL evidencia HTTPS<input id="safetyCameraMediaUrl" type="url" placeholder="https://..." /></label>
+          <button class="success-button" type="submit">Simular alerta de cámara</button>
+        </form>
+      </div>
+      <div class="toolbar"><span id="safetyStatus" class="summary"></span></div>
+      <div id="safetyLists" class="safety-lists"></div>
     </section>
 
     
@@ -501,6 +615,6 @@
   <div id="toast" class="toast" hidden></div>
 
   <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
-  <script src="app.js?v=qr-access-v1"></script>
+  <script src="app.js?v=safety-operations-v1"></script>
 </body>
 </html>

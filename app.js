@@ -1,5 +1,5 @@
 const SOS_CONFIG = window.SOS_CONFIG || {};
-const API = SOS_CONFIG.API_BASE || "https://sos.vsti.cl";
+const API = SOS_CONFIG.API_BASE || "https://api.queltu.com";
 
 const state = {
   users: [],
@@ -14,6 +14,7 @@ const state = {
   qrPoints: [],
   announcements: [],
   communicationsLicense: null,
+  safetyData: null,
   usersPage: 1,
   usersPageSize: 10,
   activeAdminSection: "users"
@@ -74,6 +75,7 @@ const els = {
   physicalDevicesAdminCard: document.getElementById("physicalDevicesAdminCard"),
   qrAdminCard: document.getElementById("qrAdminCard"),
   communicationsAdminCard: document.getElementById("communicationsAdminCard"),
+  safetyManagementCard: document.getElementById("safetyManagementCard"),
   qrPointsList: document.getElementById("qrPointsList"),
   qrStatus: document.getElementById("qrStatus"),
   nearbyCategoryChips: document.getElementById("nearbyCategoryChips"),
@@ -441,7 +443,8 @@ function adminSectionCards() {
     sirens: [els.sirensAdminCard],
     devices: [els.physicalDevicesAdminCard],
     qr: [els.qrAdminCard],
-    communications: [els.communicationsAdminCard]
+    communications: [els.communicationsAdminCard],
+    safety: [els.safetyManagementCard]
   };
 }
 
@@ -464,6 +467,7 @@ function setAdminSection(section) {
     button.classList.toggle("active", button.dataset.section === state.activeAdminSection);
   });
   if (state.activeAdminSection === "communications") loadAnnouncements();
+  if (state.activeAdminSection === "safety") loadSafetyManagement();
 }
 
 function announcementDateValue(value) {
@@ -697,6 +701,10 @@ function renderPlatformSettings(settings = {}) {
   const rp = settings.resolver_policy || {};
   const neighborApp = settings.neighbor_app || {};
   const operatorTools = settings.operator_tools || {};
+  const safetyModules = settings.safety_modules || {};
+
+  document.getElementById("cfgVertical").value = settings.vertical || "CITY";
+  setBool("cfgSafetyEnabled", safetyModules.enabled === true);
 
   setBool("cfgMobileApp", f.mobile_app_enabled !== false);
   setBool("cfgResolverApp", f.resolver_app_enabled !== false);
@@ -740,6 +748,8 @@ function collectPlatformSettings() {
   const voiceEnabled = boolValue("cfgSecureVoice");
 
   return {
+    vertical: state.platformSettings?.vertical || document.getElementById("cfgVertical").value,
+    safety_modules: state.platformSettings?.safety_modules || {},
     features: {
       mobile_app_enabled: boolValue("cfgMobileApp"),
       resolver_app_enabled: boolValue("cfgResolverApp"),
@@ -794,6 +804,195 @@ function collectPlatformSettings() {
       emergency_categories: collectNeighborCategories()
     }
   };
+}
+
+function safetyApiPath(resource = "bootstrap") {
+  return `${API}/admin/control-centers/${encodeURIComponent(currentControlCenterCode())}/safety/${resource}`;
+}
+
+function safetyMetric(label, value, tone = "") {
+  return `<article class="safety-kpi ${tone}"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value ?? 0)}</strong></article>`;
+}
+
+function safetyRecordList(title, rows, renderRow) {
+  return `<section class="safety-list"><h3>${escapeHtml(title)}</h3>${rows?.length
+    ? rows.slice(0, 8).map(renderRow).join("")
+    : '<div class="empty-state compact-empty">Sin registros todavía</div>'}</section>`;
+}
+
+function renderSafetyManagement(data = {}) {
+  state.safetyData = data;
+  const configuration = data.configuration || {};
+  const enabled = data.enabled === true;
+  const notice = document.getElementById("safetyLicenseNotice");
+  if (notice) {
+    notice.className = `communications-license-notice ${enabled ? "enabled" : "disabled"}`;
+    notice.textContent = enabled
+      ? `✅ Módulo contratado · ${data.control_center?.name || currentControlCenterCode()}`
+      : "🔒 Módulo no contratado para este Centro de Control. Solicita su habilitación en QUELTU SuperAdmin.";
+  }
+  document.querySelectorAll("#safetyManagementCard .safety-form input, #safetyManagementCard .safety-form select, #safetyManagementCard .safety-form textarea, #safetyManagementCard .safety-form button")
+    .forEach(element => { element.disabled = !enabled; });
+  const stats = data.stats || {};
+  document.getElementById("safetyKpis").innerHTML = [
+    safetyMetric("Incidentes abiertos", stats.open_incidents, Number(stats.open_incidents) ? "alert" : ""),
+    safetyMetric("Brechas inspección", stats.inspection_gaps),
+    safetyMetric("Controles fallidos", stats.failed_controls, Number(stats.failed_controls) ? "alert" : ""),
+    safetyMetric("Conductas de riesgo", stats.at_risk_observations),
+    safetyMetric("Acciones abiertas", stats.open_actions),
+    safetyMetric("Acciones vencidas", stats.overdue_actions, Number(stats.overdue_actions) ? "alert" : ""),
+    safetyMetric("Alertas cámaras", stats.new_camera_events)
+  ].join("");
+
+  const statusLabel = value => String(value || "-").replaceAll("_", " ");
+  document.getElementById("safetyLists").innerHTML = [
+    safetyRecordList("Accidentes e incidentes", data.incidents, row => `<article><strong>${escapeHtml(row.title)}</strong><span>${escapeHtml(row.area || "Área no indicada")} · ${escapeHtml(statusLabel(row.investigation_status))}</span><small>${formatDate(row.occurred_at)}</small></article>`),
+    safetyRecordList("Inspecciones", data.inspections, row => `<article><strong>${escapeHtml(row.title)}</strong><span>${escapeHtml(statusLabel(row.result))} · ${escapeHtml(row.score == null ? "Sin puntaje" : `${row.score}%`)}</span><small>${escapeHtml(row.area || "Área no indicada")}</small></article>`),
+    safetyRecordList("Controles críticos", data.critical_controls, row => `<article><strong>${escapeHtml(row.code)} · ${escapeHtml(row.name)}</strong><span>${escapeHtml(row.hazard)}</span><small>Último resultado: ${escapeHtml(statusLabel(row.latest_result || "Sin verificar"))}</small></article>`),
+    safetyRecordList("Acciones", data.actions, row => `<article><strong>${escapeHtml(row.title)}</strong><span>${escapeHtml(statusLabel(row.status))} · ${escapeHtml(row.owner_name || "Sin responsable")}</span><small>Compromiso: ${escapeHtml(row.due_date || "-")}</small>${["OPEN", "IN_PROGRESS"].includes(row.status) ? `<button type="button" class="secondary-button safety-inline-action" data-safety-action-done="${escapeHtml(row.id)}">Marcar realizada</button>` : ""}</article>`),
+    safetyRecordList("Observaciones conductuales", data.behavior_observations, row => `<article><strong>${escapeHtml(statusLabel(row.observation_type))} · ${escapeHtml(row.category)}</strong><span>${escapeHtml(row.description)}</span><small>${formatDate(row.observed_at)}</small></article>`),
+    safetyRecordList("Alertas de cámaras", data.camera_events, row => `<article><strong>${escapeHtml(statusLabel(row.event_type))}</strong><span>${escapeHtml(row.camera_name || "Cámara")}${row.confidence == null ? "" : ` · ${Math.round(Number(row.confidence) * 100)}%`}</span><small>${escapeHtml(row.area || "Área no indicada")} · ${formatDate(row.occurred_at)}</small></article>`)
+  ].join("");
+  const verificationControl = document.getElementById("safetyVerificationControl");
+  if (verificationControl) {
+    const selected = verificationControl.value;
+    verificationControl.innerHTML = '<option value="">Seleccionar control</option>' + (data.critical_controls || []).map(row => `<option value="${escapeHtml(row.id)}">${escapeHtml(row.code)} · ${escapeHtml(row.name)}</option>`).join("");
+    if ([...verificationControl.options].some(option => option.value === selected)) verificationControl.value = selected;
+  }
+  document.querySelectorAll("[data-safety-action-done]").forEach(button => button.addEventListener("click", () => updateSafetyAction(button.dataset.safetyActionDone, "DONE")));
+  document.getElementById("safetyStatus").textContent = `Actualizado ${new Date().toLocaleTimeString("es-CL")} · ${Object.values(configuration).filter(Boolean).length} capacidades configuradas`;
+}
+
+async function loadSafetyManagement() {
+  if (!getSessionToken()) return;
+  const status = document.getElementById("safetyStatus");
+  if (status) status.textContent = "Cargando Seguridad Operacional...";
+  try {
+    const response = await fetch(safetyApiPath("bootstrap?limit=40"), { headers: apiHeaders(), cache: "no-store" });
+    const data = await response.json();
+    if (!response.ok || data.status !== "ok") throw new Error(data.message || "No fue posible cargar Seguridad Operacional");
+    renderSafetyManagement(data);
+  } catch (error) {
+    console.error("[SAFETY LOAD]", error);
+    if (status) status.textContent = error.message;
+    toast(error.message);
+  }
+}
+
+async function createSafetyRecord(resource, payload, form) {
+  const status = document.getElementById("safetyStatus");
+  try {
+    if (status) status.textContent = "Guardando registro...";
+    const response = await fetch(safetyApiPath(resource), {
+      method: "POST",
+      headers: { ...apiHeaders(), "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    const data = await response.json();
+    if (!response.ok || data.status !== "ok") throw new Error(data.message || "No fue posible guardar el registro");
+    form?.reset();
+    toast("Registro de seguridad guardado");
+    await loadSafetyManagement();
+  } catch (error) {
+    console.error("[SAFETY SAVE]", error);
+    if (status) status.textContent = error.message;
+    toast(error.message);
+  }
+}
+
+async function updateSafetyAction(id, statusValue) {
+  const status = document.getElementById("safetyStatus");
+  try {
+    const response = await fetch(safetyApiPath(`actions/${encodeURIComponent(id)}`), {
+      method: "PATCH",
+      headers: { ...apiHeaders(), "Content-Type": "application/json" },
+      body: JSON.stringify({ status: statusValue })
+    });
+    const data = await response.json();
+    if (!response.ok || data.status !== "ok") throw new Error(data.message || "No fue posible actualizar la acción");
+    toast("Acción actualizada");
+    await loadSafetyManagement();
+  } catch (error) {
+    if (status) status.textContent = error.message;
+    toast(error.message);
+  }
+}
+
+function bindSafetyForms() {
+  document.getElementById("safetyIncidentForm")?.addEventListener("submit", event => {
+    event.preventDefault();
+    createSafetyRecord("incidents", {
+      title: document.getElementById("safetyIncidentTitle").value,
+      event_type: document.getElementById("safetyIncidentType").value,
+      severity: document.getElementById("safetyIncidentSeverity").value,
+      area: document.getElementById("safetyIncidentArea").value,
+      occurred_at: document.getElementById("safetyIncidentOccurredAt").value || null,
+      description: document.getElementById("safetyIncidentDescription").value
+    }, event.currentTarget);
+  });
+  document.getElementById("safetyInspectionForm")?.addEventListener("submit", event => {
+    event.preventDefault();
+    createSafetyRecord("inspections", {
+      title: document.getElementById("safetyInspectionTitle").value,
+      inspection_type: document.getElementById("safetyInspectionType").value,
+      area: document.getElementById("safetyInspectionArea").value,
+      status: document.getElementById("safetyInspectionStatus").value,
+      result: document.getElementById("safetyInspectionResult").value,
+      score: document.getElementById("safetyInspectionScore").value,
+      notes: document.getElementById("safetyInspectionNotes").value,
+      completed_at: document.getElementById("safetyInspectionStatus").value === "COMPLETED" ? new Date().toISOString() : null
+    }, event.currentTarget);
+  });
+  document.getElementById("safetyControlForm")?.addEventListener("submit", event => {
+    event.preventDefault();
+    createSafetyRecord("critical-controls", {
+      code: document.getElementById("safetyControlCode").value,
+      hazard: document.getElementById("safetyControlHazard").value,
+      name: document.getElementById("safetyControlName").value,
+      verification_question: document.getElementById("safetyControlQuestion").value
+    }, event.currentTarget);
+  });
+  document.getElementById("safetyVerificationForm")?.addEventListener("submit", event => {
+    event.preventDefault();
+    const controlId = document.getElementById("safetyVerificationControl").value;
+    if (!controlId) return toast("Selecciona un control crítico");
+    createSafetyRecord(`critical-controls/${encodeURIComponent(controlId)}/verifications`, {
+      result: document.getElementById("safetyVerificationResult").value,
+      area: document.getElementById("safetyVerificationArea").value,
+      notes: document.getElementById("safetyVerificationNotes").value
+    }, event.currentTarget);
+  });
+  document.getElementById("safetyBehaviorForm")?.addEventListener("submit", event => {
+    event.preventDefault();
+    createSafetyRecord("behavior-observations", {
+      observation_type: document.getElementById("safetyBehaviorType").value,
+      category: document.getElementById("safetyBehaviorCategory").value,
+      area: document.getElementById("safetyBehaviorArea").value,
+      description: document.getElementById("safetyBehaviorDescription").value,
+      feedback: document.getElementById("safetyBehaviorFeedback").value
+    }, event.currentTarget);
+  });
+  document.getElementById("safetyActionForm")?.addEventListener("submit", event => {
+    event.preventDefault();
+    createSafetyRecord("actions", {
+      title: document.getElementById("safetyActionTitle").value,
+      priority: document.getElementById("safetyActionPriority").value,
+      owner_name: document.getElementById("safetyActionOwner").value,
+      due_date: document.getElementById("safetyActionDueDate").value || null,
+      description: document.getElementById("safetyActionDescription").value
+    }, event.currentTarget);
+  });
+  document.getElementById("safetyCameraForm")?.addEventListener("submit", event => {
+    event.preventDefault();
+    createSafetyRecord("camera-events", {
+      event_type: document.getElementById("safetyCameraEventType").value,
+      camera_name: document.getElementById("safetyCameraName").value,
+      area: document.getElementById("safetyCameraArea").value,
+      confidence: document.getElementById("safetyCameraConfidence").value,
+      media_url: document.getElementById("safetyCameraMediaUrl").value || null,
+      provider: "MANUAL_DEMO"
+    }, event.currentTarget);
+  });
 }
 
 async function loadQrPoints() {
@@ -895,6 +1094,7 @@ async function savePlatformSettings() {
     renderPlatformSettings(data.settings);
     els.settingsStatus.textContent = "Configuración guardada";
     toast("Configuración plataforma guardada");
+    if (state.activeAdminSection === "safety") await loadSafetyManagement();
   } catch (error) {
     console.error(error);
     els.settingsStatus.textContent = error.message;
@@ -1851,6 +2051,7 @@ els.loginPhoneInput.addEventListener("keydown", event => {
 els.logoutButton.addEventListener("click", logout);
 els.reloadSettingsButton.addEventListener("click", loadPlatformSettings);
 els.saveSettingsButton.addEventListener("click", savePlatformSettings);
+document.getElementById("reloadSafetyButton")?.addEventListener("click", loadSafetyManagement);
 els.reloadBrandingButton?.addEventListener("click", loadBranding);
 els.saveBrandingButton?.addEventListener("click", saveBranding);
 els.municipalityLogoFile?.addEventListener("change", async () => {
@@ -1891,6 +2092,7 @@ els.controlCenterInput.addEventListener("change", async () => {
   await loadPhysicalDevices();
   await loadQrPoints();
   await loadUsers();
+  if (state.activeAdminSection === "safety") await loadSafetyManagement();
 });
 
 let searchTimer = null;
@@ -1908,6 +2110,8 @@ els.pageNextButton?.addEventListener("click", () => {
   state.usersPage = (state.usersPage || 1) + 1;
   renderUsers();
 });
+
+bindSafetyForms();
 
 ["cfgSirens", "cfgSecureVoice"].forEach((id) => {
   document.getElementById(id)?.addEventListener("change", updatePolicyDependencies);
