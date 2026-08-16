@@ -15,6 +15,7 @@ const state = {
   announcements: [],
   communicationsLicense: null,
   safetyData: null,
+  selectedPnrId: null,
   usersPage: 1,
   usersPageSize: 10,
   activeAdminSection: "users"
@@ -908,10 +909,6 @@ function safetyApiPath(resource = "bootstrap") {
   return `${API}/admin/control-centers/${encodeURIComponent(currentControlCenterCode())}/safety/${resource}`;
 }
 
-function safetyMetric(label, value, tone = "") {
-  return `<article class="safety-kpi ${tone}"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value ?? 0)}</strong></article>`;
-}
-
 function safetyRecordList(title, rows, renderRow) {
   return `<section class="safety-list"><h3>${escapeHtml(title)}</h3>${rows?.length
     ? rows.slice(0, 8).map(renderRow).join("")
@@ -929,14 +926,25 @@ function safetyPnrDateLabel(value) {
   return date.toLocaleDateString("es-CL", { timeZone: "UTC", day: "2-digit", month: "2-digit", year: "numeric" });
 }
 
+function safetyPnrType(value) {
+  return ({
+    PROCEDURE: { short: "P", label: "Procedimiento", className: "procedure" },
+    STANDARD: { short: "N", label: "Norma", className: "standard" },
+    RULE: { short: "R", label: "Regla", className: "rule" }
+  })[String(value || "PROCEDURE").toUpperCase()] || { short: "P", label: "Procedimiento", className: "procedure" };
+}
+
 function renderPnrRow(row) {
   const isPublished = row.active === true && String(row.status || "").toUpperCase() === "PUBLISHED";
   const dateLabel = safetyPnrDateLabel(row.effective_from);
-  return `<article>
-    <strong>${escapeHtml(row.code)} · ${escapeHtml(row.title)}</strong>
+  const type = safetyPnrType(row.document_type);
+  const selected = state.selectedPnrId === row.id;
+  return `<article class="safety-pnr-row ${selected ? "selected" : ""}" data-pnr-edit="${escapeHtml(row.id)}" tabindex="0" aria-label="Editar ${escapeHtml(row.code)}">
+    <div class="safety-pnr-heading"><strong>${escapeHtml(row.code)} · ${escapeHtml(row.title)}</strong><span class="pnr-type-badge ${escapeHtml(type.className)}">${escapeHtml(type.short)} · ${escapeHtml(type.label)}</span></div>
     <span>Versión ${escapeHtml(row.version)} · ${escapeHtml(row.work_area || "Toda la operación")}</span>
     <small>${escapeHtml(safetyPnrStatusLabel(row.status))}${dateLabel ? ` · vigente desde ${escapeHtml(dateLabel)}` : ""}</small>
     <div class="safety-row-actions">
+      <button type="button" class="secondary-button safety-inline-action" data-pnr-edit-button="${escapeHtml(row.id)}">Editar / mantener</button>
       <button type="button" class="secondary-button safety-inline-action" data-pnr-view="${escapeHtml(row.id)}" data-pnr-url="${escapeHtml(row.document_url || "")}">Visualizar PDF</button>
       ${isPublished
         ? `<button type="button" class="secondary-button safety-inline-action danger-outline" data-pnr-archive="${escapeHtml(row.id)}">Archivar</button>`
@@ -958,21 +966,10 @@ function renderSafetyManagement(data = {}) {
   }
   document.querySelectorAll("#safetyManagementCard .safety-form input, #safetyManagementCard .safety-form select, #safetyManagementCard .safety-form textarea, #safetyManagementCard .safety-form button")
     .forEach(element => { element.disabled = !enabled; });
-  const stats = data.stats || {};
-  document.getElementById("safetyKpis").innerHTML = [
-    safetyMetric("Incidentes abiertos", stats.open_incidents, Number(stats.open_incidents) ? "alert" : ""),
-    safetyMetric("Brechas inspección", stats.inspection_gaps),
-    safetyMetric("Controles fallidos", stats.failed_controls, Number(stats.failed_controls) ? "alert" : ""),
-    safetyMetric("Conductas de riesgo", stats.at_risk_observations),
-    safetyMetric("Acciones abiertas", stats.open_actions),
-    safetyMetric("Acciones vencidas", stats.overdue_actions, Number(stats.overdue_actions) ? "alert" : ""),
-    safetyMetric("Alertas cámaras", stats.new_camera_events)
-  ].join("");
 
-  const statusLabel = value => String(value || "-").replaceAll("_", " ");
   document.getElementById("safetyLists").innerHTML = [
     safetyRecordList("Biblioteca PNR", data.pnr_documents, renderPnrRow),
-    safetyRecordList("Catálogo de controles críticos", data.critical_controls, row => `<article><strong>${escapeHtml(row.code)} · ${escapeHtml(row.name)}</strong><span>${escapeHtml(row.hazard)}</span><small>Último resultado operativo: ${escapeHtml(statusLabel(row.latest_result || "Sin verificar"))}</small></article>`)
+    safetyRecordList("Catálogo de controles críticos", data.critical_controls, row => `<article><strong>${escapeHtml(row.code)} · ${escapeHtml(row.name)}</strong><span>Peligro: ${escapeHtml(row.hazard)}</span><small>${escapeHtml(row.verification_question)}</small></article>`)
   ].join("");
   const verificationControl = document.getElementById("safetyVerificationControl");
   if (verificationControl) {
@@ -981,6 +978,18 @@ function renderSafetyManagement(data = {}) {
     if ([...verificationControl.options].some(option => option.value === selected)) verificationControl.value = selected;
   }
   document.querySelectorAll("[data-safety-action-done]").forEach(button => button.addEventListener("click", () => updateSafetyAction(button.dataset.safetyActionDone, "DONE")));
+  document.querySelectorAll("[data-pnr-edit]").forEach(article => {
+    article.addEventListener("click", event => {
+      if (!event.target.closest("button")) selectPnrForEditing(article.dataset.pnrEdit);
+    });
+    article.addEventListener("keydown", event => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        selectPnrForEditing(article.dataset.pnrEdit);
+      }
+    });
+  });
+  document.querySelectorAll("[data-pnr-edit-button]").forEach(button => button.addEventListener("click", () => selectPnrForEditing(button.dataset.pnrEditButton)));
   document.querySelectorAll("[data-pnr-view]").forEach(button => button.addEventListener("click", () => viewPnr(button.dataset.pnrView, button.dataset.pnrUrl)));
   document.querySelectorAll("[data-pnr-archive]").forEach(button => button.addEventListener("click", () => {
     if (window.confirm("El PNR dejará de estar visible para trabajadores y profesionales HSE. ¿Deseas archivarlo?")) {
@@ -991,6 +1000,46 @@ function renderSafetyManagement(data = {}) {
   document.getElementById("safetyStatus").textContent = `Actualizado ${new Date().toLocaleTimeString("es-CL")} · ${Object.values(configuration).filter(Boolean).length} capacidades configuradas`;
 }
 
+function ensurePnrAreaOption(value) {
+  const select = document.getElementById("safetyPnrArea");
+  if (!select || !value || [...select.options].some(option => option.value === value)) return;
+  select.add(new Option(value, value));
+}
+
+function resetPnrForm() {
+  state.selectedPnrId = null;
+  const form = document.getElementById("safetyPnrForm");
+  form?.reset();
+  document.getElementById("safetyPnrVersion").value = "1.0";
+  document.getElementById("safetyPnrFormTitle").textContent = "📚 Nuevo PNR · Procedimiento, Norma o Regla";
+  document.getElementById("safetyPnrSubmitButton").textContent = "Publicar PNR";
+  document.getElementById("cancelPnrEditButton").hidden = true;
+  document.getElementById("safetyPnrFileHelp").textContent = "Obligatorio al crear; opcional al editar.";
+  document.querySelectorAll(".safety-pnr-row.selected").forEach(row => row.classList.remove("selected"));
+}
+
+function selectPnrForEditing(id) {
+  const row = (state.safetyData?.pnr_documents || []).find(item => item.id === id);
+  if (!row) return toast("PNR no encontrado");
+  state.selectedPnrId = row.id;
+  ensurePnrAreaOption(row.work_area);
+  document.getElementById("safetyPnrCode").value = row.code || "";
+  document.getElementById("safetyPnrTitle").value = row.title || "";
+  document.getElementById("safetyPnrType").value = row.document_type || "PROCEDURE";
+  document.getElementById("safetyPnrArea").value = row.work_area || "";
+  document.getElementById("safetyPnrVersion").value = row.version || "1.0";
+  document.getElementById("safetyPnrEffectiveFrom").value = String(row.effective_from || "").slice(0, 10);
+  document.getElementById("safetyPnrUrl").value = row.document_url || "";
+  document.getElementById("safetyPnrSummary").value = row.summary || "";
+  document.getElementById("safetyPnrFile").value = "";
+  document.getElementById("safetyPnrFormTitle").textContent = `✏️ Editando ${row.code}`;
+  document.getElementById("safetyPnrSubmitButton").textContent = "Guardar cambios";
+  document.getElementById("cancelPnrEditButton").hidden = false;
+  document.getElementById("safetyPnrFileHelp").textContent = row.has_uploaded_file ? `Archivo actual: ${row.file_name || "PDF cargado"}. Selecciona otro sólo para reemplazarlo.` : "Puedes mantener la URL actual o reemplazar el documento.";
+  document.querySelectorAll(".safety-pnr-row").forEach(element => element.classList.toggle("selected", element.dataset.pnrEdit === row.id));
+  document.getElementById("safetyPnrForm").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
 async function viewPnr(id, documentUrl = "") {
   if (documentUrl) {
     window.open(documentUrl, "_blank", "noopener,noreferrer");
@@ -999,7 +1048,7 @@ async function viewPnr(id, documentUrl = "") {
   const preview = window.open("about:blank", "_blank");
   if (preview) preview.opener = null;
   try {
-    const response = await fetch(`${API}/mobile/safety/pnr/${encodeURIComponent(id)}/content`, {
+    const response = await fetch(safetyApiPath(`pnr/${encodeURIComponent(id)}/content`), {
       headers: apiHeaders(),
       cache: "no-store"
     });
@@ -1044,10 +1093,12 @@ async function createSafetyRecord(resource, payload, form) {
     form?.reset();
     toast("Registro de seguridad guardado");
     await loadSafetyManagement();
+    return true;
   } catch (error) {
     console.error("[SAFETY SAVE]", error);
     if (status) status.textContent = error.message;
     toast(error.message);
+    return false;
   }
 }
 
@@ -1078,9 +1129,18 @@ async function updatePnr(id, payload) {
     });
     const data = await response.json();
     if (!response.ok || data.status !== "ok") throw new Error(data.message || "No fue posible actualizar el PNR");
-    toast(payload.status === "PUBLISHED" ? "PNR restaurado y publicado" : payload.status === "ARCHIVED" ? "PNR archivado" : "PNR actualizado");
+    const changedFields = Object.keys(payload || {});
+    const statusOnly = changedFields.length > 0 && changedFields.every((field) => ["status", "active"].includes(field));
+    toast(
+      statusOnly && payload.status === "PUBLISHED"
+        ? "PNR restaurado y publicado"
+        : statusOnly && payload.status === "ARCHIVED"
+          ? "PNR archivado"
+          : "PNR actualizado"
+    );
     await loadSafetyManagement();
-  } catch (error) { toast(error.message); }
+    return true;
+  } catch (error) { toast(error.message); return false; }
 }
 
 function fileAsBase64(file) {
@@ -1096,6 +1156,7 @@ function bindSafetyForms() {
   document.getElementById("openHsePortalButton")?.addEventListener("click", () => {
     window.open("https://response.queltu.com", "_blank", "noopener,noreferrer");
   });
+  document.getElementById("cancelPnrEditButton")?.addEventListener("click", resetPnrForm);
   document.getElementById("safetyPnrForm")?.addEventListener("submit", async event => {
     event.preventDefault();
     const file = document.getElementById("safetyPnrFile").files?.[0] || null;
@@ -1114,8 +1175,15 @@ function bindSafetyForms() {
       status: "PUBLISHED",
       active: true
     };
-    if (!payload.document_base64 && !payload.document_url) return toast("Carga un PDF o indica una URL HTTPS");
-    createSafetyRecord("pnr", payload, event.currentTarget);
+    if (!state.selectedPnrId && !payload.document_base64 && !payload.document_url) return toast("Carga un PDF o indica una URL HTTPS");
+    if (state.selectedPnrId) {
+      const selectedId = state.selectedPnrId;
+      const saved = await updatePnr(selectedId, payload);
+      if (saved) resetPnrForm();
+      return;
+    }
+    const saved = await createSafetyRecord("pnr", payload, event.currentTarget);
+    if (saved) resetPnrForm();
   });
   document.getElementById("safetyIncidentForm")?.addEventListener("submit", event => {
     event.preventDefault();
@@ -1147,7 +1215,8 @@ function bindSafetyForms() {
       code: document.getElementById("safetyControlCode").value,
       hazard: document.getElementById("safetyControlHazard").value,
       name: document.getElementById("safetyControlName").value,
-      verification_question: document.getElementById("safetyControlQuestion").value
+      verification_question: document.getElementById("safetyControlQuestion").value,
+      performance_standard: document.getElementById("safetyControlStandard").value
     }, event.currentTarget);
   });
   document.getElementById("safetyVerificationForm")?.addEventListener("submit", event => {
