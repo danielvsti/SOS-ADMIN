@@ -1244,7 +1244,7 @@ function fileAsBase64(file) {
 
 function bindSafetyForms() {
   document.getElementById("openHseProfessionalPortalButton")?.addEventListener("click", () => {
-    window.open("https://queltu-hse.onrender.com", "_blank", "noopener,noreferrer");
+    window.open("https://hse.queltu.com", "_blank", "noopener,noreferrer");
   });
   document.getElementById("openHsePortalButton")?.addEventListener("click", () => {
     window.open("https://response.queltu.com/?mode=supervisor", "_blank", "noopener,noreferrer");
