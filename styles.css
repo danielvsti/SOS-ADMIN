@@ -7,6 +7,7 @@
 .safety-module-explanation { margin: 16px 0; padding: 16px 18px; border: 1px solid #bfdbfe; border-radius: 16px; background: #eff6ff; color: #1e3a5f; }
 .safety-module-explanation strong { display: block; margin-bottom: 6px; color: #0f172a; }
 .safety-module-explanation p { margin: 0; line-height: 1.45; }
+.safety-portal-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
 .safety-editor-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
 .safety-form { border: 1px solid #dce3ec; border-radius: 20px; padding: 18px; background: linear-gradient(150deg, #fff, #f8fafc); display: grid; gap: 12px; align-content: start; }
 .safety-form h3 { margin: 0 0 4px; color: #111827; }
