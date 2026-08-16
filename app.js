@@ -970,18 +970,36 @@ function safetyControlType(value) {
   return ({ PREVENTIVE: "Preventivo", MITIGATING: "Mitigador", RECOVERY: "Recuperación" })[String(value || "").toUpperCase()] || "Sin clasificar";
 }
 
+const MINING_WORK_AREAS = [
+  ["", "Toda la operación"],
+  ["Mina Subterrânea", "Mina Subterránea"],
+  ["Planta de Beneficiamento", "Planta de Beneficio"],
+  ["Manutenção / Planta", "Mantenimiento / Planta"],
+  ["Pátio de Estocagem", "Patio de Acopio"],
+  ["Laboratório / Geologia", "Laboratorio / Geología"]
+];
+
+function workAreaOptions(selectedValue = "") {
+  const selected = String(selectedValue || "");
+  const known = MINING_WORK_AREAS.some(([value]) => value === selected);
+  const options = [...MINING_WORK_AREAS];
+  if (selected && !known) options.push([selected, selected]);
+  return options.map(([value, label]) => `<option value="${escapeHtml(value)}" ${value === selected ? "selected" : ""}>${escapeHtml(label)}</option>`).join("");
+}
+
 function renderPnrRow(row) {
   const isPublished = row.active === true && String(row.status || "").toUpperCase() === "PUBLISHED";
   const dateLabel = safetyPnrDateLabel(row.effective_from);
   const type = safetyPnrType(row.document_type);
   const selected = state.selectedPnrId === row.id;
-  return `<article class="safety-pnr-row ${selected ? "selected" : ""}" data-pnr-edit="${escapeHtml(row.id)}" tabindex="0" aria-label="Editar ${escapeHtml(row.code)}">
-    <div class="safety-pnr-heading"><strong>${escapeHtml(row.code)} · ${escapeHtml(row.title)}</strong><span class="pnr-type-badge ${escapeHtml(type.className)}">${escapeHtml(type.short)} · ${escapeHtml(type.label)}</span></div>
-    <span>Versión ${escapeHtml(row.version)} · ${escapeHtml(row.work_area || "Toda la operación")}</span>
-    <small>${escapeHtml(safetyPnrStatusLabel(row.status))}${dateLabel ? ` · vigente desde ${escapeHtml(dateLabel)}` : ""}</small>
+  return `<article class="safety-pnr-row safety-pnr-table-row ${selected ? "selected" : ""}" data-pnr-edit="${escapeHtml(row.id)}" tabindex="0" aria-label="Editar ${escapeHtml(row.code)}">
+    <div class="safety-pnr-name" data-label="Documento"><strong>${escapeHtml(row.code)} · ${escapeHtml(row.title)}</strong><span class="pnr-type-badge ${escapeHtml(type.className)}">${escapeHtml(type.short)} · ${escapeHtml(type.label)}</span></div>
+    <span data-label="Versión">${escapeHtml(row.version)}</span>
+    <span data-label="Área">${escapeHtml(row.work_area || "Toda la operación")}</span>
+    <small data-label="Vigencia">${escapeHtml(safetyPnrStatusLabel(row.status))}${dateLabel ? ` · ${escapeHtml(dateLabel)}` : ""}</small>
     <div class="safety-row-actions">
-      <button type="button" class="secondary-button safety-inline-action" data-pnr-edit-button="${escapeHtml(row.id)}">Editar / mantener</button>
-      <button type="button" class="secondary-button safety-inline-action" data-pnr-view="${escapeHtml(row.id)}" data-pnr-url="${escapeHtml(row.document_url || "")}">Visualizar PDF</button>
+      <button type="button" class="secondary-button safety-inline-action" data-pnr-edit-button="${escapeHtml(row.id)}">Editar</button>
+      <button type="button" class="secondary-button safety-inline-action" data-pnr-view="${escapeHtml(row.id)}" data-pnr-url="${escapeHtml(row.document_url || "")}">Ver PDF</button>
       ${isPublished
         ? `<button type="button" class="secondary-button safety-inline-action danger-outline" data-pnr-archive="${escapeHtml(row.id)}">Archivar</button>`
         : `<button type="button" class="success-button safety-inline-action" data-pnr-restore="${escapeHtml(row.id)}">Restaurar</button>`}
@@ -2023,7 +2041,7 @@ function renderDetail() {
         <label>RUT<input id="editRut" value="${escapeHtml(user.rut || "")}"></label>
         <label>Email<input id="editEmail" value="${escapeHtml(user.email || "")}"></label>
         <label>Dirección<input id="editAddress" value="${escapeHtml(user.declared_address || "")}"></label>
-        <label>Área de trabajo<input id="editWorkArea" value="${escapeHtml(user.work_area || "")}" placeholder="Interior Mina / Planta / Taller"></label>
+        <label>Área de trabajo<select id="editWorkArea">${workAreaOptions(user.work_area || "")}</select></label>
         <label>Latitud<input id="editLatitude" value="${escapeHtml(user.latitude || "")}"></label>
         <label>Longitud<input id="editLongitude" value="${escapeHtml(user.longitude || "")}"></label>
       </div>

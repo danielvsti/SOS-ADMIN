@@ -511,7 +511,16 @@
             <label>Email<input id="newEmail" placeholder="usuario@organizacion.cl" /></label>
             <label>RUT<input id="newRut" placeholder="11.111.111-1" /></label>
             <label>Dirección<input id="newAddress" placeholder="Dirección / sector" /></label>
-            <label>Área de trabajo<input id="newWorkArea" placeholder="Interior Mina / Planta / Taller" /></label>
+            <label>Área de trabajo
+              <select id="newWorkArea">
+                <option value="">Toda la operación</option>
+                <option value="Mina Subterrânea">Mina Subterránea</option>
+                <option value="Planta de Beneficiamento">Planta de Beneficio</option>
+                <option value="Manutenção / Planta">Mantenimiento / Planta</option>
+                <option value="Pátio de Estocagem">Patio de Acopio</option>
+                <option value="Laboratório / Geologia">Laboratorio / Geología</option>
+              </select>
+            </label>
             <label>Latitud<input id="newLatitude" placeholder="-33.01895" /></label>
             <label>Longitud<input id="newLongitude" placeholder="-71.55090" /></label>
           </div>
