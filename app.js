@@ -909,8 +909,8 @@ function safetyApiPath(resource = "bootstrap") {
   return `${API}/admin/control-centers/${encodeURIComponent(currentControlCenterCode())}/safety/${resource}`;
 }
 
-function safetyRecordList(title, rows, renderRow) {
-  return `<section class="safety-list"><h3>${escapeHtml(title)}</h3>${rows?.length
+function safetyRecordList(title, rows, renderRow, extraClass = "") {
+  return `<section class="safety-list ${escapeHtml(extraClass)}"><h3>${escapeHtml(title)}</h3>${rows?.length
     ? rows.slice(0, 8).map(renderRow).join("")
     : '<div class="empty-state compact-empty">Sin registros todavía</div>'}</section>`;
 }
@@ -967,10 +967,18 @@ function renderSafetyManagement(data = {}) {
   document.querySelectorAll("#safetyManagementCard .safety-form input, #safetyManagementCard .safety-form select, #safetyManagementCard .safety-form textarea, #safetyManagementCard .safety-form button")
     .forEach(element => { element.disabled = !enabled; });
 
-  document.getElementById("safetyLists").innerHTML = [
-    safetyRecordList("Biblioteca PNR", data.pnr_documents, renderPnrRow),
-    safetyRecordList("Catálogo de controles críticos", data.critical_controls, row => `<article><strong>${escapeHtml(row.code)} · ${escapeHtml(row.name)}</strong><span>Peligro: ${escapeHtml(row.hazard)}</span><small>${escapeHtml(row.verification_question)}</small></article>`)
-  ].join("");
+  document.getElementById("safetyPnrLibrary").innerHTML = safetyRecordList(
+    "Biblioteca PNR",
+    data.pnr_documents,
+    renderPnrRow,
+    "pnr-library-list"
+  );
+  document.getElementById("safetyControlCatalog").innerHTML = safetyRecordList(
+    "Catálogo de controles críticos",
+    data.critical_controls,
+    row => `<article><strong>${escapeHtml(row.code)} · ${escapeHtml(row.name)}</strong><span>Peligro: ${escapeHtml(row.hazard)}</span><small>${escapeHtml(row.verification_question)}</small></article>`,
+    "critical-control-list"
+  );
   const verificationControl = document.getElementById("safetyVerificationControl");
   if (verificationControl) {
     const selected = verificationControl.value;
