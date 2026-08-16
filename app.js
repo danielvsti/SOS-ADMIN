@@ -945,12 +945,7 @@ function renderSafetyManagement(data = {}) {
   const statusLabel = value => String(value || "-").replaceAll("_", " ");
   document.getElementById("safetyLists").innerHTML = [
     safetyRecordList("Biblioteca PNR", data.pnr_documents, row => `<article><strong>${escapeHtml(row.code)} · ${escapeHtml(row.title)}</strong><span>Versión ${escapeHtml(row.version)} · ${escapeHtml(row.work_area || "Toda la operación")}</span><small>${escapeHtml(statusLabel(row.status))}${row.effective_from ? ` · vigente desde ${escapeHtml(row.effective_from)}` : ""}</small>${row.active ? `<button type="button" class="secondary-button safety-inline-action" data-pnr-archive="${escapeHtml(row.id)}">Archivar</button>` : ""}</article>`),
-    safetyRecordList("Accidentes e incidentes", data.incidents, row => `<article><strong>${escapeHtml(row.title)}</strong><span>${escapeHtml(row.area || "Área no indicada")} · ${escapeHtml(statusLabel(row.investigation_status))}</span><small>${formatDate(row.occurred_at)}</small></article>`),
-    safetyRecordList("Inspecciones", data.inspections, row => `<article><strong>${escapeHtml(row.title)}</strong><span>${escapeHtml(statusLabel(row.result))} · ${escapeHtml(row.score == null ? "Sin puntaje" : `${row.score}%`)}</span><small>${escapeHtml(row.area || "Área no indicada")}</small></article>`),
-    safetyRecordList("Controles críticos", data.critical_controls, row => `<article><strong>${escapeHtml(row.code)} · ${escapeHtml(row.name)}</strong><span>${escapeHtml(row.hazard)}</span><small>Último resultado: ${escapeHtml(statusLabel(row.latest_result || "Sin verificar"))}</small></article>`),
-    safetyRecordList("Acciones", data.actions, row => `<article><strong>${escapeHtml(row.title)}</strong><span>${escapeHtml(statusLabel(row.status))} · ${escapeHtml(row.owner_name || "Sin responsable")}</span><small>Compromiso: ${escapeHtml(row.due_date || "-")}</small>${["OPEN", "IN_PROGRESS"].includes(row.status) ? `<button type="button" class="secondary-button safety-inline-action" data-safety-action-done="${escapeHtml(row.id)}">Marcar realizada</button>` : ""}</article>`),
-    safetyRecordList("Observaciones conductuales", data.behavior_observations, row => `<article><strong>${escapeHtml(statusLabel(row.observation_type))} · ${escapeHtml(row.category)}</strong><span>${escapeHtml(row.description)}</span><small>${formatDate(row.observed_at)}</small></article>`),
-    safetyRecordList("Alertas de cámaras", data.camera_events, row => `<article><strong>${escapeHtml(statusLabel(row.event_type))}</strong><span>${escapeHtml(row.camera_name || "Cámara")}${row.confidence == null ? "" : ` · ${Math.round(Number(row.confidence) * 100)}%`}</span><small>${escapeHtml(row.area || "Área no indicada")} · ${formatDate(row.occurred_at)}</small></article>`)
+    safetyRecordList("Catálogo de controles críticos", data.critical_controls, row => `<article><strong>${escapeHtml(row.code)} · ${escapeHtml(row.name)}</strong><span>${escapeHtml(row.hazard)}</span><small>Último resultado operativo: ${escapeHtml(statusLabel(row.latest_result || "Sin verificar"))}</small></article>`)
   ].join("");
   const verificationControl = document.getElementById("safetyVerificationControl");
   if (verificationControl) {
@@ -1042,6 +1037,9 @@ function fileAsBase64(file) {
 }
 
 function bindSafetyForms() {
+  document.getElementById("openHsePortalButton")?.addEventListener("click", () => {
+    window.open("https://response.queltu.com", "_blank", "noopener,noreferrer");
+  });
   document.getElementById("safetyPnrForm")?.addEventListener("submit", async event => {
     event.preventDefault();
     const file = document.getElementById("safetyPnrFile").files?.[0] || null;

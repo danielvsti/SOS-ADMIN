@@ -319,8 +319,9 @@
         <button id="reloadSafetyButton" class="secondary-button" type="button">Actualizar</button>
       </div>
       <div class="safety-module-explanation" id="safetyModuleExplanation">
-        <strong>¿Qué gestiona este módulo?</strong>
-        <p>Complementa la respuesta de emergencias con gestión preventiva y trazabilidad: accidentes e incidentes, inspecciones, verificación de controles críticos, observaciones conductuales, acciones correctivas y eventos de cámaras con IA. Sus registros alimentan los indicadores de Seguridad Operacional; no generan tickets ni activan alarmas automáticamente salvo que exista una integración configurada.</p>
+        <strong>Configuración del módulo HSE</strong>
+        <p>Desde Administración se publican los PNR y se mantienen los catálogos de controles críticos. El trabajo de terreno, la investigación de casos y las solicitudes de cierre se realizan en QUELTU Respuesta, desde la app o el portal web del Profesional HSE.</p>
+        <button id="openHsePortalButton" class="secondary-button" type="button">Abrir portal HSE</button>
       </div>
       <div id="safetyLicenseNotice" class="communications-license-notice">Consultando configuración...</div>
       <div id="safetyKpis" class="safety-kpis"></div>
@@ -342,36 +343,10 @@
         <button class="success-button" type="submit">Publicar PNR</button>
       </form>
 
-      <div class="safety-editor-grid">
-        <form class="safety-form" id="safetyIncidentForm">
-          <h3>⚠️ Registrar accidente / incidente</h3>
-          <label>Título<input id="safetyIncidentTitle" maxlength="180" required placeholder="Caída de persona en nivel 850" /></label>
-          <div class="edit-grid">
-            <label>Tipo<select id="safetyIncidentType"><option>ACCIDENT</option><option>NEAR_MISS</option><option>OCCUPATIONAL_HEALTH</option><option>ENVIRONMENTAL</option></select></label>
-            <label>Severidad<select id="safetyIncidentSeverity"><option>LOW</option><option selected>MEDIUM</option><option>HIGH</option><option>CRITICAL</option></select></label>
-            <label>Área / faena<input id="safetyIncidentArea" placeholder="Mina / Planta / Taller" /></label>
-            <label>Fecha y hora<input id="safetyIncidentOccurredAt" type="datetime-local" /></label>
-          </div>
-          <label>Descripción<textarea id="safetyIncidentDescription" class="short-textarea" placeholder="Qué ocurrió y consecuencias inmediatas"></textarea></label>
-          <button class="success-button" type="submit">Registrar incidente</button>
-        </form>
-
-        <form class="safety-form" id="safetyInspectionForm">
-          <h3>🔎 Registrar inspección</h3>
-          <label>Título<input id="safetyInspectionTitle" maxlength="180" required placeholder="Inspección preoperacional cargador" /></label>
-          <div class="edit-grid">
-            <label>Tipo<input id="safetyInspectionType" value="FIELD_INSPECTION" /></label>
-            <label>Área / faena<input id="safetyInspectionArea" /></label>
-            <label>Estado<select id="safetyInspectionStatus"><option>PLANNED</option><option>IN_PROGRESS</option><option selected>COMPLETED</option></select></label>
-            <label>Resultado<select id="safetyInspectionResult"><option>COMPLIANT</option><option>PARTIAL</option><option>NON_COMPLIANT</option><option>NOT_EVALUATED</option></select></label>
-            <label>Puntaje 0–100<input id="safetyInspectionScore" type="number" min="0" max="100" /></label>
-          </div>
-          <label>Notas<textarea id="safetyInspectionNotes" class="short-textarea"></textarea></label>
-          <button class="success-button" type="submit">Guardar inspección</button>
-        </form>
-
+      <div class="safety-editor-grid safety-catalog-grid">
         <form class="safety-form" id="safetyControlForm">
-          <h3>🛡️ Control crítico</h3>
+          <h3>🛡️ Catálogo de controles críticos</h3>
+          <p class="summary">Define los controles que el Profesional HSE podrá verificar durante la atención e investigación de un caso.</p>
           <div class="edit-grid">
             <label>Código<input id="safetyControlCode" required placeholder="CC-VEH-01" /></label>
             <label>Peligro<input id="safetyControlHazard" required placeholder="Interacción equipo-persona" /></label>
@@ -379,53 +354,6 @@
           <label>Nombre<input id="safetyControlName" required placeholder="Segregación efectiva" /></label>
           <label>Pregunta de verificación<textarea id="safetyControlQuestion" class="short-textarea" required placeholder="¿La segregación física está instalada y operativa?"></textarea></label>
           <button class="success-button" type="submit">Guardar control</button>
-        </form>
-
-        <form class="safety-form" id="safetyVerificationForm">
-          <h3>☑️ Verificar control crítico</h3>
-          <label>Control<select id="safetyVerificationControl" required><option value="">Seleccionar control</option></select></label>
-          <div class="edit-grid">
-            <label>Resultado<select id="safetyVerificationResult"><option>EFFECTIVE</option><option>FAILED</option><option>NOT_APPLICABLE</option></select></label>
-            <label>Área / faena<input id="safetyVerificationArea" /></label>
-          </div>
-          <label>Evidencia / observación<textarea id="safetyVerificationNotes" class="short-textarea" placeholder="Condición observada y evidencia disponible"></textarea></label>
-          <button class="success-button" type="submit">Registrar verificación</button>
-        </form>
-
-        <form class="safety-form" id="safetyBehaviorForm">
-          <h3>👷 Observación conductual</h3>
-          <div class="edit-grid">
-            <label>Tipo<select id="safetyBehaviorType"><option>SAFE</option><option>AT_RISK</option></select></label>
-            <label>Categoría<input id="safetyBehaviorCategory" required placeholder="Uso de EPP" /></label>
-            <label>Área / faena<input id="safetyBehaviorArea" /></label>
-          </div>
-          <label>Observación<textarea id="safetyBehaviorDescription" class="short-textarea" required></textarea></label>
-          <label>Retroalimentación<textarea id="safetyBehaviorFeedback" class="short-textarea"></textarea></label>
-          <button class="success-button" type="submit">Registrar observación</button>
-        </form>
-
-        <form class="safety-form" id="safetyActionForm">
-          <h3>✅ Acción correctiva / preventiva</h3>
-          <label>Título<input id="safetyActionTitle" required placeholder="Reponer barrera física" /></label>
-          <div class="edit-grid">
-            <label>Prioridad<select id="safetyActionPriority"><option>LOW</option><option selected>MEDIUM</option><option>HIGH</option><option>CRITICAL</option></select></label>
-            <label>Responsable<input id="safetyActionOwner" /></label>
-            <label>Fecha compromiso<input id="safetyActionDueDate" type="date" /></label>
-          </div>
-          <label>Descripción<textarea id="safetyActionDescription" class="short-textarea"></textarea></label>
-          <button class="success-button" type="submit">Crear acción</button>
-        </form>
-
-        <form class="safety-form" id="safetyCameraForm">
-          <h3>📹 Evento IA de cámara (demo)</h3>
-          <div class="edit-grid">
-            <label>Evento<input id="safetyCameraEventType" required value="PPE_NON_COMPLIANCE" /></label>
-            <label>Cámara<input id="safetyCameraName" placeholder="CAM-PLANTA-04" /></label>
-            <label>Área<input id="safetyCameraArea" /></label>
-            <label>Confianza 0–1<input id="safetyCameraConfidence" type="number" min="0" max="1" step="0.01" value="0.94" /></label>
-          </div>
-          <label>URL evidencia HTTPS<input id="safetyCameraMediaUrl" type="url" placeholder="https://..." /></label>
-          <button class="success-button" type="submit">Simular alerta de cámara</button>
         </form>
       </div>
       <div class="toolbar"><span id="safetyStatus" class="summary"></span></div>
