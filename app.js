@@ -1154,7 +1154,7 @@ function fileAsBase64(file) {
 
 function bindSafetyForms() {
   document.getElementById("openHsePortalButton")?.addEventListener("click", () => {
-    window.open("https://response.queltu.com", "_blank", "noopener,noreferrer");
+    window.open("https://response.queltu.com/?mode=supervisor", "_blank", "noopener,noreferrer");
   });
   document.getElementById("cancelPnrEditButton")?.addEventListener("click", resetPnrForm);
   document.getElementById("safetyPnrForm")?.addEventListener("submit", async event => {
