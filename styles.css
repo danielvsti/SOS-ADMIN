@@ -26,6 +26,10 @@
 .safety-list article span, .safety-list article small { color: #64748b; }
 .safety-form :disabled { cursor: not-allowed; opacity: .55; }
 .safety-inline-action { margin-top: 8px; padding: 8px 12px; width: max-content; font-size: .82rem; }
+.safety-row-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.safety-row-actions .safety-inline-action { margin-top: 8px; }
+.danger-outline { color: #b91c1c; border-color: #fecaca; background: #fff7f7; }
+.danger-outline:hover { background: #fee2e2; }
 .compact-empty { min-height: auto; padding: 18px 4px; }
 @media (max-width: 980px) {
   .safety-editor-grid, .safety-lists { grid-template-columns: 1fr; }

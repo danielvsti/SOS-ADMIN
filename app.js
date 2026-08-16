@@ -918,6 +918,33 @@ function safetyRecordList(title, rows, renderRow) {
     : '<div class="empty-state compact-empty">Sin registros todavía</div>'}</section>`;
 }
 
+function safetyPnrStatusLabel(value) {
+  return ({ PUBLISHED: "Publicado", ARCHIVED: "Archivado", DRAFT: "Borrador" })[String(value || "").toUpperCase()] || String(value || "-").replaceAll("_", " ");
+}
+
+function safetyPnrDateLabel(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return date.toLocaleDateString("es-CL", { timeZone: "UTC", day: "2-digit", month: "2-digit", year: "numeric" });
+}
+
+function renderPnrRow(row) {
+  const isPublished = row.active === true && String(row.status || "").toUpperCase() === "PUBLISHED";
+  const dateLabel = safetyPnrDateLabel(row.effective_from);
+  return `<article>
+    <strong>${escapeHtml(row.code)} · ${escapeHtml(row.title)}</strong>
+    <span>Versión ${escapeHtml(row.version)} · ${escapeHtml(row.work_area || "Toda la operación")}</span>
+    <small>${escapeHtml(safetyPnrStatusLabel(row.status))}${dateLabel ? ` · vigente desde ${escapeHtml(dateLabel)}` : ""}</small>
+    <div class="safety-row-actions">
+      <button type="button" class="secondary-button safety-inline-action" data-pnr-view="${escapeHtml(row.id)}" data-pnr-url="${escapeHtml(row.document_url || "")}">Visualizar PDF</button>
+      ${isPublished
+        ? `<button type="button" class="secondary-button safety-inline-action danger-outline" data-pnr-archive="${escapeHtml(row.id)}">Archivar</button>`
+        : `<button type="button" class="success-button safety-inline-action" data-pnr-restore="${escapeHtml(row.id)}">Restaurar</button>`}
+    </div>
+  </article>`;
+}
+
 function renderSafetyManagement(data = {}) {
   state.safetyData = data;
   const configuration = data.configuration || {};
@@ -944,7 +971,7 @@ function renderSafetyManagement(data = {}) {
 
   const statusLabel = value => String(value || "-").replaceAll("_", " ");
   document.getElementById("safetyLists").innerHTML = [
-    safetyRecordList("Biblioteca PNR", data.pnr_documents, row => `<article><strong>${escapeHtml(row.code)} · ${escapeHtml(row.title)}</strong><span>Versión ${escapeHtml(row.version)} · ${escapeHtml(row.work_area || "Toda la operación")}</span><small>${escapeHtml(statusLabel(row.status))}${row.effective_from ? ` · vigente desde ${escapeHtml(row.effective_from)}` : ""}</small>${row.active ? `<button type="button" class="secondary-button safety-inline-action" data-pnr-archive="${escapeHtml(row.id)}">Archivar</button>` : ""}</article>`),
+    safetyRecordList("Biblioteca PNR", data.pnr_documents, renderPnrRow),
     safetyRecordList("Catálogo de controles críticos", data.critical_controls, row => `<article><strong>${escapeHtml(row.code)} · ${escapeHtml(row.name)}</strong><span>${escapeHtml(row.hazard)}</span><small>Último resultado operativo: ${escapeHtml(statusLabel(row.latest_result || "Sin verificar"))}</small></article>`)
   ].join("");
   const verificationControl = document.getElementById("safetyVerificationControl");
@@ -954,8 +981,37 @@ function renderSafetyManagement(data = {}) {
     if ([...verificationControl.options].some(option => option.value === selected)) verificationControl.value = selected;
   }
   document.querySelectorAll("[data-safety-action-done]").forEach(button => button.addEventListener("click", () => updateSafetyAction(button.dataset.safetyActionDone, "DONE")));
-  document.querySelectorAll("[data-pnr-archive]").forEach(button => button.addEventListener("click", () => updatePnr(button.dataset.pnrArchive, { status: "ARCHIVED", active: false })));
+  document.querySelectorAll("[data-pnr-view]").forEach(button => button.addEventListener("click", () => viewPnr(button.dataset.pnrView, button.dataset.pnrUrl)));
+  document.querySelectorAll("[data-pnr-archive]").forEach(button => button.addEventListener("click", () => {
+    if (window.confirm("El PNR dejará de estar visible para trabajadores y profesionales HSE. ¿Deseas archivarlo?")) {
+      updatePnr(button.dataset.pnrArchive, { status: "ARCHIVED", active: false });
+    }
+  }));
+  document.querySelectorAll("[data-pnr-restore]").forEach(button => button.addEventListener("click", () => updatePnr(button.dataset.pnrRestore, { status: "PUBLISHED", active: true })));
   document.getElementById("safetyStatus").textContent = `Actualizado ${new Date().toLocaleTimeString("es-CL")} · ${Object.values(configuration).filter(Boolean).length} capacidades configuradas`;
+}
+
+async function viewPnr(id, documentUrl = "") {
+  if (documentUrl) {
+    window.open(documentUrl, "_blank", "noopener,noreferrer");
+    return;
+  }
+  const preview = window.open("about:blank", "_blank");
+  if (preview) preview.opener = null;
+  try {
+    const response = await fetch(`${API}/mobile/safety/pnr/${encodeURIComponent(id)}/content`, {
+      headers: apiHeaders(),
+      cache: "no-store"
+    });
+    if (!response.ok) throw new Error(await response.text() || "No fue posible abrir el PDF");
+    const blobUrl = URL.createObjectURL(await response.blob());
+    if (preview) preview.location.replace(blobUrl);
+    else window.open(blobUrl, "_blank", "noopener,noreferrer");
+    window.setTimeout(() => URL.revokeObjectURL(blobUrl), 5 * 60 * 1000);
+  } catch (error) {
+    preview?.close();
+    toast(error.message || "No fue posible abrir el PDF");
+  }
 }
 
 async function loadSafetyManagement() {
@@ -1022,7 +1078,7 @@ async function updatePnr(id, payload) {
     });
     const data = await response.json();
     if (!response.ok || data.status !== "ok") throw new Error(data.message || "No fue posible actualizar el PNR");
-    toast("PNR actualizado");
+    toast(payload.status === "PUBLISHED" ? "PNR restaurado y publicado" : payload.status === "ARCHIVED" ? "PNR archivado" : "PNR actualizado");
     await loadSafetyManagement();
   } catch (error) { toast(error.message); }
 }
