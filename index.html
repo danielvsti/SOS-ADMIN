@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#151A1D" />
   <link rel="icon" href="queltu-symbol.png" type="image/png" />
   <link rel="manifest" href="manifest.json" />
-  <link rel="stylesheet" href="styles.css?v=safety-layout-v3" />
+  <link rel="stylesheet" href="styles.css?v=safety-layout-v4" />
   <link rel="stylesheet" href="queltu-brand.css?v=20260716-2" />
 </head>
 <body>
@@ -349,16 +349,21 @@
 
       <div class="safety-control-workspace">
         <form class="safety-form" id="safetyControlForm">
-          <h3>🛡️ Mantenedor de controles críticos</h3>
+          <div class="create-card-header compact-header">
+            <h3 id="safetyControlFormTitle">🛡️ Nuevo control crítico</h3>
+            <button id="cancelControlEditButton" class="secondary-button" type="button" hidden>Cancelar edición</button>
+          </div>
           <p class="summary">Define los controles que el Profesional HSE podrá verificar dentro de cada ticket. Los PNR aplicables aparecen en el mismo contexto según el área de trabajo, aportando el procedimiento que sustenta la verificación.</p>
           <div class="edit-grid">
             <label>Código<input id="safetyControlCode" required placeholder="CC-VEH-01" /></label>
             <label>Peligro<input id="safetyControlHazard" required placeholder="Interacción equipo-persona" /></label>
+            <label>Tipo<select id="safetyControlType"><option value="PREVENTIVE">Preventivo</option><option value="MITIGATING">Mitigador</option><option value="RECOVERY">Recuperación</option></select></label>
+            <label>Área de trabajo<select id="safetyControlArea"><option value="">Toda la operación</option><option value="Mina Subterrânea">Mina Subterránea</option><option value="Planta de Beneficiamento">Planta de Beneficio</option><option value="Manutenção / Planta">Mantenimiento / Planta</option><option value="Pátio de Estocagem">Patio de Acopio</option><option value="Laboratório / Geologia">Laboratorio / Geología</option></select></label>
           </div>
           <label>Nombre<input id="safetyControlName" required placeholder="Segregación efectiva" /></label>
           <label>Pregunta de verificación<textarea id="safetyControlQuestion" class="short-textarea" required placeholder="¿La segregación física está instalada y operativa?"></textarea></label>
           <label>Estándar de desempeño<textarea id="safetyControlStandard" class="short-textarea" placeholder="Condición mínima para considerar el control efectivo"></textarea></label>
-          <button class="success-button" type="submit">Guardar control</button>
+          <button id="safetyControlSubmitButton" class="success-button" type="submit">Guardar control</button>
         </form>
         <div id="safetyControlCatalog" class="safety-control-catalog"></div>
       </div>
@@ -570,6 +575,6 @@
   <div id="toast" class="toast" hidden></div>
 
   <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
-  <script src="app.js?v=safety-layout-v3"></script>
+  <script src="app.js?v=safety-layout-v4"></script>
 </body>
 </html>

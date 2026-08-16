@@ -16,6 +16,8 @@ const state = {
   communicationsLicense: null,
   safetyData: null,
   selectedPnrId: null,
+  selectedCriticalControlId: null,
+  safetyFilters: { pnrArea: "ALL", pnrType: "ALL", controlArea: "ALL", controlType: "ALL" },
   usersPage: 1,
   usersPageSize: 10,
   activeAdminSection: "users"
@@ -909,10 +911,40 @@ function safetyApiPath(resource = "bootstrap") {
   return `${API}/admin/control-centers/${encodeURIComponent(currentControlCenterCode())}/safety/${resource}`;
 }
 
-function safetyRecordList(title, rows, renderRow, extraClass = "") {
-  return `<section class="safety-list ${escapeHtml(extraClass)}"><h3>${escapeHtml(title)}</h3>${rows?.length
-    ? rows.slice(0, 8).map(renderRow).join("")
+function safetyRecordList(title, rows, renderRow, extraClass = "", filters = "") {
+  return `<section class="safety-list ${escapeHtml(extraClass)}"><div class="safety-list-heading"><h3>${escapeHtml(title)}</h3>${filters}</div>${rows?.length
+    ? rows.map(renderRow).join("")
     : '<div class="empty-state compact-empty">Sin registros todavía</div>'}</section>`;
+}
+
+function safetyFilterOptions(rows, field, includeGlobal = true) {
+  const values = [...new Set((rows || []).map(row => String(row?.[field] || "").trim()).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b, "es"));
+  return `${includeGlobal ? '<option value="GLOBAL">Toda la operación</option>' : '<option value="UNCLASSIFIED">Sin clasificar</option>'}${values.map(value => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`).join("")}`;
+}
+
+function safetyFilterBar(scope, rows, typeOptions) {
+  const filters = state.safetyFilters;
+  const areaValue = filters[`${scope}Area`] || "ALL";
+  const typeValue = filters[`${scope}Type`] || "ALL";
+  const areaOptions = safetyFilterOptions(rows, "work_area", true);
+  return `<div class="safety-filter-bar" aria-label="Filtros de ${scope === "pnr" ? "PNR" : "controles críticos"}">
+    <label>Área<select data-safety-filter="${scope}Area"><option value="ALL">Todas las áreas</option>${areaOptions}</select></label>
+    <label>Tipo<select data-safety-filter="${scope}Type"><option value="ALL">Todos los tipos</option>${typeOptions}</select></label>
+  </div>`
+    .replace(`value="${escapeHtml(areaValue)}"`, `value="${escapeHtml(areaValue)}" selected`)
+    .replace(`value="${escapeHtml(typeValue)}"`, `value="${escapeHtml(typeValue)}" selected`);
+}
+
+function matchesSafetyFilter(row, scope) {
+  const filters = state.safetyFilters;
+  const area = filters[`${scope}Area`] || "ALL";
+  const type = filters[`${scope}Type`] || "ALL";
+  const rowArea = String(row.work_area || "").trim();
+  const rowType = String(scope === "pnr" ? row.document_type : row.control_type || "").toUpperCase();
+  const areaMatches = area === "ALL" || (area === "GLOBAL" ? !rowArea : rowArea === area);
+  const typeMatches = type === "ALL" || (type === "UNCLASSIFIED" ? !rowType : rowType === type);
+  return areaMatches && typeMatches;
 }
 
 function safetyPnrStatusLabel(value) {
@@ -932,6 +964,10 @@ function safetyPnrType(value) {
     STANDARD: { short: "N", label: "Norma", className: "standard" },
     RULE: { short: "R", label: "Regla", className: "rule" }
   })[String(value || "PROCEDURE").toUpperCase()] || { short: "P", label: "Procedimiento", className: "procedure" };
+}
+
+function safetyControlType(value) {
+  return ({ PREVENTIVE: "Preventivo", MITIGATING: "Mitigador", RECOVERY: "Recuperación" })[String(value || "").toUpperCase()] || "Sin clasificar";
 }
 
 function renderPnrRow(row) {
@@ -967,17 +1003,21 @@ function renderSafetyManagement(data = {}) {
   document.querySelectorAll("#safetyManagementCard .safety-form input, #safetyManagementCard .safety-form select, #safetyManagementCard .safety-form textarea, #safetyManagementCard .safety-form button")
     .forEach(element => { element.disabled = !enabled; });
 
+  const pnrDocuments = data.pnr_documents || [];
+  const controls = data.critical_controls || [];
   document.getElementById("safetyPnrLibrary").innerHTML = safetyRecordList(
     "Biblioteca PNR",
-    data.pnr_documents,
+    pnrDocuments.filter(row => matchesSafetyFilter(row, "pnr")),
     renderPnrRow,
-    "pnr-library-list"
+    "pnr-library-list",
+    safetyFilterBar("pnr", pnrDocuments, '<option value="PROCEDURE">Procedimiento</option><option value="STANDARD">Norma</option><option value="RULE">Regla</option>')
   );
   document.getElementById("safetyControlCatalog").innerHTML = safetyRecordList(
     "Catálogo de controles críticos",
-    data.critical_controls,
-    row => `<article><strong>${escapeHtml(row.code)} · ${escapeHtml(row.name)}</strong><span>Peligro: ${escapeHtml(row.hazard)}</span><small>${escapeHtml(row.verification_question)}</small></article>`,
-    "critical-control-list"
+    controls.filter(row => matchesSafetyFilter(row, "control")),
+    row => `<article class="${state.selectedCriticalControlId === row.id ? "selected" : ""}" data-control-edit="${escapeHtml(row.id)}"><strong>${escapeHtml(row.code)} · ${escapeHtml(row.name)}</strong><div class="critical-control-meta"><span>${escapeHtml(safetyControlType(row.control_type))}</span><span>${escapeHtml(row.work_area || "Toda la operación")}</span></div><span>Peligro: ${escapeHtml(row.hazard)}</span><small>${escapeHtml(row.verification_question)}</small><div class="safety-row-actions"><button type="button" class="secondary-button safety-inline-action" data-control-edit-button="${escapeHtml(row.id)}">Editar / mantener</button></div></article>`,
+    "critical-control-list",
+    safetyFilterBar("control", controls, '<option value="UNCLASSIFIED">Sin clasificar</option><option value="PREVENTIVE">Preventivo</option><option value="MITIGATING">Mitigador</option><option value="RECOVERY">Recuperación</option>')
   );
   const verificationControl = document.getElementById("safetyVerificationControl");
   if (verificationControl) {
@@ -1005,6 +1045,14 @@ function renderSafetyManagement(data = {}) {
     }
   }));
   document.querySelectorAll("[data-pnr-restore]").forEach(button => button.addEventListener("click", () => updatePnr(button.dataset.pnrRestore, { status: "PUBLISHED", active: true })));
+  document.querySelectorAll("[data-safety-filter]").forEach(select => select.addEventListener("change", () => {
+    state.safetyFilters[select.dataset.safetyFilter] = select.value;
+    renderSafetyManagement(state.safetyData || {});
+  }));
+  document.querySelectorAll("[data-control-edit]").forEach(article => article.addEventListener("click", event => {
+    if (!event.target.closest("button")) selectCriticalControlForEditing(article.dataset.controlEdit);
+  }));
+  document.querySelectorAll("[data-control-edit-button]").forEach(button => button.addEventListener("click", () => selectCriticalControlForEditing(button.dataset.controlEditButton)));
   document.getElementById("safetyStatus").textContent = `Actualizado ${new Date().toLocaleTimeString("es-CL")} · ${Object.values(configuration).filter(Boolean).length} capacidades configuradas`;
 }
 
@@ -1012,6 +1060,40 @@ function ensurePnrAreaOption(value) {
   const select = document.getElementById("safetyPnrArea");
   if (!select || !value || [...select.options].some(option => option.value === value)) return;
   select.add(new Option(value, value));
+}
+
+function ensureControlAreaOption(value) {
+  const select = document.getElementById("safetyControlArea");
+  if (!select || !value || [...select.options].some(option => option.value === value)) return;
+  select.add(new Option(value, value));
+}
+
+function resetCriticalControlForm() {
+  state.selectedCriticalControlId = null;
+  document.getElementById("safetyControlForm")?.reset();
+  document.getElementById("safetyControlFormTitle").textContent = "🛡️ Nuevo control crítico";
+  document.getElementById("safetyControlSubmitButton").textContent = "Guardar control";
+  document.getElementById("cancelControlEditButton").hidden = true;
+  document.querySelectorAll("[data-control-edit].selected").forEach(row => row.classList.remove("selected"));
+}
+
+function selectCriticalControlForEditing(id) {
+  const row = (state.safetyData?.critical_controls || []).find(item => item.id === id);
+  if (!row) return toast("Control crítico no encontrado");
+  state.selectedCriticalControlId = row.id;
+  ensureControlAreaOption(row.work_area);
+  document.getElementById("safetyControlCode").value = row.code || "";
+  document.getElementById("safetyControlHazard").value = row.hazard || "";
+  document.getElementById("safetyControlType").value = row.control_type || "PREVENTIVE";
+  document.getElementById("safetyControlArea").value = row.work_area || "";
+  document.getElementById("safetyControlName").value = row.name || "";
+  document.getElementById("safetyControlQuestion").value = row.verification_question || "";
+  document.getElementById("safetyControlStandard").value = row.performance_standard || "";
+  document.getElementById("safetyControlFormTitle").textContent = `✏️ Editando ${row.code}`;
+  document.getElementById("safetyControlSubmitButton").textContent = "Guardar cambios";
+  document.getElementById("cancelControlEditButton").hidden = false;
+  document.querySelectorAll("[data-control-edit]").forEach(element => element.classList.toggle("selected", element.dataset.controlEdit === row.id));
+  document.getElementById("safetyControlForm").scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 function resetPnrForm() {
@@ -1165,6 +1247,7 @@ function bindSafetyForms() {
     window.open("https://response.queltu.com/?mode=supervisor", "_blank", "noopener,noreferrer");
   });
   document.getElementById("cancelPnrEditButton")?.addEventListener("click", resetPnrForm);
+  document.getElementById("cancelControlEditButton")?.addEventListener("click", resetCriticalControlForm);
   document.getElementById("safetyPnrForm")?.addEventListener("submit", async event => {
     event.preventDefault();
     const file = document.getElementById("safetyPnrFile").files?.[0] || null;
@@ -1222,10 +1305,12 @@ function bindSafetyForms() {
     createSafetyRecord("critical-controls", {
       code: document.getElementById("safetyControlCode").value,
       hazard: document.getElementById("safetyControlHazard").value,
+      control_type: document.getElementById("safetyControlType").value,
+      work_area: document.getElementById("safetyControlArea").value || null,
       name: document.getElementById("safetyControlName").value,
       verification_question: document.getElementById("safetyControlQuestion").value,
       performance_standard: document.getElementById("safetyControlStandard").value
-    }, event.currentTarget);
+    }, event.currentTarget).then(saved => { if (saved) resetCriticalControlForm(); });
   });
   document.getElementById("safetyVerificationForm")?.addEventListener("submit", event => {
     event.preventDefault();
