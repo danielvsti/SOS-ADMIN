@@ -325,6 +325,23 @@
       <div id="safetyLicenseNotice" class="communications-license-notice">Consultando configuración...</div>
       <div id="safetyKpis" class="safety-kpis"></div>
 
+      <form class="safety-form safety-pnr-form" id="safetyPnrForm">
+        <h3>📚 Biblioteca PNR · Procedimientos, Normas y Reglas</h3>
+        <p class="summary">Publica documentos versionados. Un PNR sin área será visible para toda la operación; con área, sólo para trabajadores y casos de esa área.</p>
+        <div class="edit-grid">
+          <label>Código<input id="safetyPnrCode" required maxlength="80" placeholder="PNR-MIN-001" /></label>
+          <label>Título<input id="safetyPnrTitle" required maxlength="220" placeholder="Ingreso seguro a interior mina" /></label>
+          <label>Tipo<select id="safetyPnrType"><option value="PROCEDURE">Procedimiento</option><option value="STANDARD">Norma</option><option value="RULE">Regla</option></select></label>
+          <label>Área de trabajo<input id="safetyPnrArea" maxlength="180" placeholder="Interior Mina (vacío = todas)" /></label>
+          <label>Versión<input id="safetyPnrVersion" required maxlength="40" value="1.0" /></label>
+          <label>Vigente desde<input id="safetyPnrEffectiveFrom" type="date" /></label>
+          <label>PDF (máx. 12 MB)<input id="safetyPnrFile" type="file" accept="application/pdf,.pdf" /></label>
+          <label>o URL HTTPS<input id="safetyPnrUrl" type="url" placeholder="https://.../documento.pdf" /></label>
+        </div>
+        <label>Resumen<textarea id="safetyPnrSummary" class="short-textarea" maxlength="5000" placeholder="Objetivo y alcance del documento"></textarea></label>
+        <button class="success-button" type="submit">Publicar PNR</button>
+      </form>
+
       <div class="safety-editor-grid">
         <form class="safety-form" id="safetyIncidentForm">
           <h3>⚠️ Registrar accidente / incidente</h3>
@@ -553,6 +570,7 @@
             <label>Email<input id="newEmail" placeholder="usuario@organizacion.cl" /></label>
             <label>RUT<input id="newRut" placeholder="11.111.111-1" /></label>
             <label>Dirección<input id="newAddress" placeholder="Dirección / sector" /></label>
+            <label>Área de trabajo<input id="newWorkArea" placeholder="Interior Mina / Planta / Taller" /></label>
             <label>Latitud<input id="newLatitude" placeholder="-33.01895" /></label>
             <label>Longitud<input id="newLongitude" placeholder="-71.55090" /></label>
           </div>

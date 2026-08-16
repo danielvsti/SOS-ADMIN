@@ -944,6 +944,7 @@ function renderSafetyManagement(data = {}) {
 
   const statusLabel = value => String(value || "-").replaceAll("_", " ");
   document.getElementById("safetyLists").innerHTML = [
+    safetyRecordList("Biblioteca PNR", data.pnr_documents, row => `<article><strong>${escapeHtml(row.code)} · ${escapeHtml(row.title)}</strong><span>Versión ${escapeHtml(row.version)} · ${escapeHtml(row.work_area || "Toda la operación")}</span><small>${escapeHtml(statusLabel(row.status))}${row.effective_from ? ` · vigente desde ${escapeHtml(row.effective_from)}` : ""}</small>${row.active ? `<button type="button" class="secondary-button safety-inline-action" data-pnr-archive="${escapeHtml(row.id)}">Archivar</button>` : ""}</article>`),
     safetyRecordList("Accidentes e incidentes", data.incidents, row => `<article><strong>${escapeHtml(row.title)}</strong><span>${escapeHtml(row.area || "Área no indicada")} · ${escapeHtml(statusLabel(row.investigation_status))}</span><small>${formatDate(row.occurred_at)}</small></article>`),
     safetyRecordList("Inspecciones", data.inspections, row => `<article><strong>${escapeHtml(row.title)}</strong><span>${escapeHtml(statusLabel(row.result))} · ${escapeHtml(row.score == null ? "Sin puntaje" : `${row.score}%`)}</span><small>${escapeHtml(row.area || "Área no indicada")}</small></article>`),
     safetyRecordList("Controles críticos", data.critical_controls, row => `<article><strong>${escapeHtml(row.code)} · ${escapeHtml(row.name)}</strong><span>${escapeHtml(row.hazard)}</span><small>Último resultado: ${escapeHtml(statusLabel(row.latest_result || "Sin verificar"))}</small></article>`),
@@ -958,6 +959,7 @@ function renderSafetyManagement(data = {}) {
     if ([...verificationControl.options].some(option => option.value === selected)) verificationControl.value = selected;
   }
   document.querySelectorAll("[data-safety-action-done]").forEach(button => button.addEventListener("click", () => updateSafetyAction(button.dataset.safetyActionDone, "DONE")));
+  document.querySelectorAll("[data-pnr-archive]").forEach(button => button.addEventListener("click", () => updatePnr(button.dataset.pnrArchive, { status: "ARCHIVED", active: false })));
   document.getElementById("safetyStatus").textContent = `Actualizado ${new Date().toLocaleTimeString("es-CL")} · ${Object.values(configuration).filter(Boolean).length} capacidades configuradas`;
 }
 
@@ -1016,7 +1018,51 @@ async function updateSafetyAction(id, statusValue) {
   }
 }
 
+async function updatePnr(id, payload) {
+  try {
+    const response = await fetch(safetyApiPath(`pnr/${encodeURIComponent(id)}`), {
+      method: "PATCH",
+      headers: { ...apiHeaders(), "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    const data = await response.json();
+    if (!response.ok || data.status !== "ok") throw new Error(data.message || "No fue posible actualizar el PNR");
+    toast("PNR actualizado");
+    await loadSafetyManagement();
+  } catch (error) { toast(error.message); }
+}
+
+function fileAsBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || "").split(",").pop() || "");
+    reader.onerror = () => reject(reader.error || new Error("No fue posible leer el PDF"));
+    reader.readAsDataURL(file);
+  });
+}
+
 function bindSafetyForms() {
+  document.getElementById("safetyPnrForm")?.addEventListener("submit", async event => {
+    event.preventDefault();
+    const file = document.getElementById("safetyPnrFile").files?.[0] || null;
+    if (file && file.size > 12 * 1024 * 1024) return toast("El PDF supera el máximo de 12 MB");
+    const payload = {
+      code: document.getElementById("safetyPnrCode").value,
+      title: document.getElementById("safetyPnrTitle").value,
+      document_type: document.getElementById("safetyPnrType").value,
+      work_area: document.getElementById("safetyPnrArea").value || null,
+      version: document.getElementById("safetyPnrVersion").value,
+      effective_from: document.getElementById("safetyPnrEffectiveFrom").value || null,
+      document_url: document.getElementById("safetyPnrUrl").value || null,
+      file_name: file?.name || null,
+      document_base64: file ? await fileAsBase64(file) : null,
+      summary: document.getElementById("safetyPnrSummary").value,
+      status: "PUBLISHED",
+      active: true
+    };
+    if (!payload.document_base64 && !payload.document_url) return toast("Carga un PDF o indica una URL HTTPS");
+    createSafetyRecord("pnr", payload, event.currentTarget);
+  });
   document.getElementById("safetyIncidentForm")?.addEventListener("submit", event => {
     event.preventDefault();
     createSafetyRecord("incidents", {
@@ -1744,6 +1790,7 @@ function renderDetail() {
         <div class="info-item"><div class="info-label">RUT</div><div class="info-value">${escapeHtml(user.rut || "-")}</div></div>
         <div class="info-item"><div class="info-label">Email</div><div class="info-value">${escapeHtml(user.email || "-")}</div></div>
         <div class="info-item"><div class="info-label">Dirección</div><div class="info-value">${escapeHtml(user.declared_address || "-")}</div></div>
+        <div class="info-item"><div class="info-label">Área de trabajo</div><div class="info-value">${escapeHtml(user.work_area || "Toda la operación")}</div></div>
         <div class="info-item"><div class="info-label">GPS domicilio</div><div class="info-value">${escapeHtml(user.latitude || "-")}, ${escapeHtml(user.longitude || "-")}</div></div>
         <div class="info-item"><div class="info-label">Creado</div><div class="info-value">${formatDate(user.created_at)}</div></div>
         <div class="info-item"><div class="info-label">Actualizado</div><div class="info-value">${formatDate(user.updated_at)}</div></div>
@@ -1757,6 +1804,7 @@ function renderDetail() {
         <label>RUT<input id="editRut" value="${escapeHtml(user.rut || "")}"></label>
         <label>Email<input id="editEmail" value="${escapeHtml(user.email || "")}"></label>
         <label>Dirección<input id="editAddress" value="${escapeHtml(user.declared_address || "")}"></label>
+        <label>Área de trabajo<input id="editWorkArea" value="${escapeHtml(user.work_area || "")}" placeholder="Interior Mina / Planta / Taller"></label>
         <label>Latitud<input id="editLatitude" value="${escapeHtml(user.latitude || "")}"></label>
         <label>Longitud<input id="editLongitude" value="${escapeHtml(user.longitude || "")}"></label>
       </div>
@@ -1859,6 +1907,7 @@ window.saveBasicData = async function saveBasicData() {
     rut: document.getElementById("editRut").value.trim(),
     email: document.getElementById("editEmail").value.trim(),
     declared_address: document.getElementById("editAddress").value.trim(),
+    work_area: document.getElementById("editWorkArea").value.trim() || null,
     latitude: parseNullableNumber(document.getElementById("editLatitude").value),
     longitude: parseNullableNumber(document.getElementById("editLongitude").value)
   };
@@ -1940,6 +1989,7 @@ function getCreateFormPayload() {
     email: document.getElementById("newEmail").value.trim() || null,
     rut: document.getElementById("newRut").value.trim() || null,
     declared_address: document.getElementById("newAddress").value.trim() || null,
+    work_area: document.getElementById("newWorkArea").value.trim() || null,
     latitude: parseNullableNumber(document.getElementById("newLatitude").value),
     longitude: parseNullableNumber(document.getElementById("newLongitude").value),
     emergency_contacts: contacts
@@ -1978,7 +2028,7 @@ async function createUserFromForm() {
 
 function clearCreateForm(showToast = true) {
   [
-    "newFullName", "newPhone", "newEmail", "newRut", "newAddress",
+    "newFullName", "newPhone", "newEmail", "newRut", "newAddress", "newWorkArea",
     "newLatitude", "newLongitude", "newContact1Name", "newContact1Phone",
     "newContact1Rel", "newContact2Name", "newContact2Phone", "newContact2Rel"
   ].forEach(id => {

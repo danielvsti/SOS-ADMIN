@@ -1177,3 +1177,9 @@ body{
     grid-template-columns: 1fr;
   }
 }
+
+.safety-pnr-form {
+  margin: 18px 0;
+  border-color: #b9cffb;
+  background: linear-gradient(145deg, #f7faff, #eef5ff);
+}
