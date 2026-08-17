@@ -109,7 +109,7 @@ const BLOCKED_NEARBY_CATEGORIES = new Set(["VIF", "VIF_SILENT", "SILENT", "SILEN
 
 const VERTICAL_UI_DEFAULTS = Object.freeze({
   CITY: { pageTitle: "Administración municipal", usersTitle: "Control municipal", endUsers: "Vecinos", responders: "Resolutores", operators: "Operadores" },
-  MINING: { pageTitle: "Administración minera", usersTitle: "Gestión de personas de la faena", endUsers: "Trabajadores", responders: "Brigadistas", operators: "Operadores" },
+  MINING: { pageTitle: "Administración minera", usersTitle: "Gestión de personas de la faena", endUsers: "Trabajadores", responders: "Profesionales HSE", operators: "Supervisores HSE" },
   INDUSTRY: { pageTitle: "Administración industrial", usersTitle: "Gestión de personas de la planta", endUsers: "Colaboradores", responders: "Equipos de Emergencia", operators: "Operadores" }
 });
 
@@ -163,6 +163,7 @@ function applyVerticalExperience(settings = {}) {
   setText("createUsersDescription", `Agrega ${ui.endUsers.toLocaleLowerCase("es")}, ${ui.responders.toLocaleLowerCase("es")}, ${ui.operators.toLocaleLowerCase("es")} o administradores de este ${terminology.controlCenter}.`);
   setText("createNeighborRoleOption", `NEIGHBOR · ${terminology.endUser}`);
   setText("createResponderRoleOption", `RESOLVER · ${terminology.responder}`);
+  setText("createOperatorRoleOption", `OPERATOR · ${terminology.operator}`);
   setText("platformConfigIntro", `Define las políticas funcionales de este ${terminology.controlCenter}. Se aplican al mapa, tickets, llamadas, dispositivos y ${incidentPlural}.`);
   setText("mobileAppFeatureLabel", `App ${terminology.endUser} habilitada`);
   setText("responderAppFeatureLabel", `App ${terminology.responder} habilitada`);
@@ -1265,7 +1266,7 @@ function bindSafetyForms() {
     window.open("https://hse.queltu.com", "_blank", "noopener,noreferrer");
   });
   document.getElementById("openHsePortalButton")?.addEventListener("click", () => {
-    window.open("https://response.queltu.com/?mode=supervisor", "_blank", "noopener,noreferrer");
+    window.open("https://hse.queltu.com/?mode=supervisor", "_blank", "noopener,noreferrer");
   });
   document.getElementById("cancelPnrEditButton")?.addEventListener("click", resetPnrForm);
   document.getElementById("cancelControlEditButton")?.addEventListener("click", resetCriticalControlForm);
