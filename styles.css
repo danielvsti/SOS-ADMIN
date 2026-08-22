@@ -73,6 +73,10 @@
   .safety-pnr-table-row .safety-row-actions { justify-content: flex-start; flex-wrap: wrap; }
 }
 
+.city-compliance-card .users-list { max-height: 320px; overflow: auto; margin-top: 14px; }
+.city-compliance-card .checkbox-list { display: grid; gap: 8px; margin: 14px 0; }
+.city-compliance-card .bulk-result { white-space: pre-wrap; overflow-wrap: anywhere; }
+
 [hidden] {
   display: none !important;
 }
@@ -1224,4 +1228,66 @@ body{
   margin: 18px 0;
   border-color: #b9cffb;
   background: linear-gradient(145deg, #f7faff, #eef5ff);
+}
+
+.sla-default-grid {
+  margin-top: 12px;
+  grid-template-columns: repeat(4, minmax(120px, 1fr));
+}
+
+.sla-category-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 18px 0 8px;
+}
+
+.sla-category-header span {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.sla-category-rows {
+  display: grid;
+  gap: 8px;
+}
+
+.sla-category-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.4fr) repeat(4, minmax(92px, .7fr));
+  gap: 10px;
+  align-items: end;
+  padding: 10px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.sla-category-name {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  align-self: center;
+}
+
+.sla-category-row label {
+  margin: 0;
+  color: #475569;
+  font-size: 11px;
+}
+
+.sla-category-row input {
+  margin-top: 4px;
+}
+
+@media (max-width: 980px) {
+  .sla-default-grid,
+  .sla-category-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .sla-category-name {
+    grid-column: 1 / -1;
+  }
 }

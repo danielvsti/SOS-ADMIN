@@ -52,6 +52,7 @@
       <button class="admin-tab" type="button" data-section="devices"><span>🆘</span> Botones SOS físicos</button>
       <button class="admin-tab" type="button" data-section="qr"><span>▦</span> Puntos QR</button>
       <button class="admin-tab" type="button" data-section="communications"><span>📢</span> Comunicaciones</button>
+      <button class="admin-tab" id="cityComplianceTab" type="button" data-section="city-compliance"><span>🏙️</span> Interoperabilidad ciudad</button>
       <button class="admin-tab" id="safetyAdminTab" type="button" data-section="safety"><span>⛑</span> Seguridad operacional</button>
     </nav>
     <section class="card filters-card" id="userFiltersCard">
@@ -161,6 +162,25 @@
             <label>Ventana agrupamiento incidentes (minutos)<input id="cfgDedupWindow" type="number" min="1" max="1440" /></label>
             <label><span id="responderGpsLabel">GPS respondedor máximo válido (segundos)</span><input id="cfgResolverGpsAge" type="number" min="30" max="86400" /></label>
           </div>
+        </div>
+
+        <div class="settings-pane wide-pane">
+          <h3>SLA y escalamiento operacional</h3>
+          <p class="muted small-note">Los plazos se congelan en cada ticket para auditoría. Una asignación vencida puede liberarse y reasignarse automáticamente.</p>
+          <label class="check-row"><input id="cfgSlaEnabled" type="checkbox" /> Aplicar SLA a nuevos tickets</label>
+          <label class="check-row"><input id="cfgSlaAutoReassign" type="checkbox" /> Reasignar si el equipo no acepta a tiempo</label>
+          <label class="check-row"><input id="cfgSlaNotifyCentral" type="checkbox" /> Registrar alerta visible para la central ante incumplimiento</label>
+          <div class="edit-grid sla-default-grid">
+            <label>Reconocimiento (min)<input id="cfgSlaAck" type="number" min="1" max="10080" /></label>
+            <label>Asignación (min)<input id="cfgSlaAssign" type="number" min="1" max="10080" /></label>
+            <label>Aceptación móvil (min)<input id="cfgSlaAccept" type="number" min="1" max="1440" /></label>
+            <label>Resolución (min)<input id="cfgSlaResolve" type="number" min="1" max="43200" /></label>
+          </div>
+          <div class="sla-category-header">
+            <strong>Plazos por categoría</strong>
+            <span>Los valores vacíos usan el SLA general.</span>
+          </div>
+          <div id="cfgSlaCategoryRows" class="sla-category-rows"></div>
         </div>
 
         <div class="settings-pane" data-siren-policy>
@@ -308,6 +328,37 @@
         <div class="toolbar"><button id="createAnnouncementButton" class="success-button" type="button">Crear anuncio</button><span id="announcementsStatus" class="summary"></span></div>
       </div>
       <div id="announcementsList" class="announcements-list"></div>
+    </section>
+
+    <section class="card platform-card city-compliance-card" id="cityComplianceCard" hidden>
+      <div class="create-card-header"><div><div class="section-title">Preparación regulatoria e interoperabilidad</div><p>Inventario geoespacial y observaciones territoriales. Toda transmisión externa requiere convenio, credencial y formato acordado.</p></div><button id="reloadCityCompliance" class="secondary-button" type="button">Actualizar</button></div>
+      <div class="create-grid">
+        <div class="create-pane">
+          <h3>Cámaras, IoT y LPR</h3>
+          <div class="edit-grid">
+            <label>Tipo<select id="cityAssetType"><option value="CAMERA">Cámara</option><option value="IOT">IoT</option><option value="LPR">LPR</option></select></label>
+            <label>Código<input id="cityAssetCode" placeholder="CAM-VINA-001" /></label><label>Nombre<input id="cityAssetName" placeholder="Cámara Plaza Sector" /></label><label>Propietario<input id="cityAssetOwner" placeholder="Municipalidad" /></label>
+            <label>Latitud<input id="cityAssetLatitude" placeholder="-33.0245" /></label><label>Longitud<input id="cityAssetLongitude" placeholder="-71.5518" /></label>
+            <label>Compartición<select id="cityAssetSharing"><option value="INTERNAL">Interno</option><option value="RESTRICTED">Restringido por convenio</option><option value="SHAREABLE">Compartible</option></select></label><label>Retención (días)<input id="cityAssetRetention" type="number" min="0" placeholder="30" /></label>
+          </div>
+          <div class="toolbar"><button id="saveCityAsset" class="success-button" type="button">Guardar activo</button><button id="exportCityAssetsGeojson" class="secondary-button" type="button">GeoJSON</button><button id="exportCityAssetsCsv" class="secondary-button" type="button">CSV</button></div>
+          <div id="cityAssetsList" class="users-list"></div>
+        </div>
+        <div class="create-pane">
+          <h3>Factores criminógenos</h3>
+          <div class="edit-grid">
+            <label>Clasificación<select id="cityFactorType"><option value="INCIVILITY">Incivilidad</option><option value="INFORMAL_COMMERCE">Comercio informal</option><option value="ABANDONED_PROPERTY">Predio abandonado</option><option value="POOR_LIGHTING">Iluminación deficiente</option><option value="ILLEGAL_DUMPING">Microbasural</option><option value="OTHER">Otro</option></select></label>
+            <label>Severidad<select id="cityFactorSeverity"><option value="1">1 Crítica</option><option value="2">2 Alta</option><option value="3" selected>3 Media</option><option value="4">4 Baja</option><option value="5">5 Informativa</option></select></label>
+            <label>Título<input id="cityFactorTitle" placeholder="Comercio informal recurrente" /></label><label>Latitud<input id="cityFactorLatitude" placeholder="-33.0245" /></label><label>Longitud<input id="cityFactorLongitude" placeholder="-71.5518" /></label>
+          </div>
+          <label>Descripción<textarea id="cityFactorDescription" class="short-textarea" placeholder="Observación objetiva y verificable"></textarea></label>
+          <div class="toolbar"><button id="saveCityFactor" class="success-button" type="button">Registrar observación</button><button id="exportCityFactorsCsv" class="secondary-button" type="button">Reporte CSV</button></div><div id="cityFactorsList" class="users-list"></div>
+          <h3>Acceso externo auditado</h3>
+          <div class="edit-grid"><label>Organismo<input id="cityExternalAgency" placeholder="Ministerio Público / SPD" /></label><label>Vencimiento<input id="cityExternalExpiry" type="date" /></label></div>
+          <div class="checkbox-list"><label><input id="scopeAssetsRead" type="checkbox" checked /> Inventario geoespacial</label><label><input id="scopeIncidentsRead" type="checkbox" checked /> Incidentes sin identificadores directos</label><label><input id="scopeLprRead" type="checkbox" /> Inventario LPR (no lecturas)</label></div>
+          <div class="toolbar"><button id="createExternalClient" class="secondary-button" type="button">Generar credencial de demo</button></div><div id="cityExternalTokenResult" class="bulk-result" hidden></div>
+        </div>
+      </div>
     </section>
 
     <section class="card platform-card safety-admin-card" id="safetyManagementCard" hidden>
@@ -587,6 +638,6 @@
   <div id="toast" class="toast" hidden></div>
 
   <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
-  <script src="app.js?v=hse-supervisor-v1"></script>
+  <script src="app.js?v=city-compliance-v1"></script>
 </body>
 </html>

@@ -15,6 +15,8 @@ const state = {
   announcements: [],
   communicationsLicense: null,
   safetyData: null,
+  cityAssets: [],
+  cityFactors: [],
   selectedPnrId: null,
   selectedCriticalControlId: null,
   safetyFilters: { pnrArea: "ALL", pnrType: "ALL", controlArea: "ALL", controlType: "ALL" },
@@ -79,6 +81,7 @@ const els = {
   qrAdminCard: document.getElementById("qrAdminCard"),
   communicationsAdminCard: document.getElementById("communicationsAdminCard"),
   safetyManagementCard: document.getElementById("safetyManagementCard"),
+  cityComplianceCard: document.getElementById("cityComplianceCard"),
   qrPointsList: document.getElementById("qrPointsList"),
   qrStatus: document.getElementById("qrStatus"),
   nearbyCategoryChips: document.getElementById("nearbyCategoryChips"),
@@ -201,6 +204,9 @@ function applyVerticalExperience(settings = {}) {
   const safetyTab = document.getElementById("safetyAdminTab");
   if (safetyTab) safetyTab.hidden = !safetyEnabled;
   if (!safetyEnabled && state.activeAdminSection === "safety") setAdminSection("platform");
+  const cityComplianceTab = document.getElementById("cityComplianceTab");
+  if (cityComplianceTab) cityComplianceTab.hidden = vertical !== "CITY";
+  if (vertical !== "CITY" && state.activeAdminSection === "city-compliance") setAdminSection("platform");
 }
 
 function normalizeNeighborCategories(rawCategories = []) {
@@ -307,6 +313,40 @@ function collectNeighborCategories() {
     if (sos) sos.enabled = true;
   }
   return normalizeNeighborCategories(categories);
+}
+
+function renderSlaCategoryPolicies(categories = [], slaPolicy = {}) {
+  const container = document.getElementById("cfgSlaCategoryRows");
+  if (!container) return;
+  const overrides = slaPolicy.by_category || {};
+  container.innerHTML = normalizeNeighborCategories(categories)
+    .filter(category => category.enabled !== false)
+    .map(category => {
+      const values = overrides[category.type] || {};
+      const field = (name, max) => `<input type="number" min="1" max="${max}" placeholder="General" value="${values[name] ?? ""}" data-sla-category="${escapeHtml(category.type)}" data-sla-field="${name}">`;
+      return `<div class="sla-category-row">
+        <span class="sla-category-name"><span>${escapeHtml(category.icon || "🆘")}</span><strong>${escapeHtml(categoryDisplayTitle(category))}</strong></span>
+        <label>Reconocer${field("acknowledgement_minutes", 10080)}</label>
+        <label>Asignar${field("assignment_minutes", 10080)}</label>
+        <label>Aceptar${field("acceptance_minutes", 1440)}</label>
+        <label>Resolver${field("resolution_minutes", 43200)}</label>
+      </div>`;
+    }).join("");
+}
+
+function collectSlaCategoryPolicies() {
+  const output = {};
+  document.querySelectorAll("#cfgSlaCategoryRows [data-sla-category]").forEach(input => {
+    const category = input.dataset.slaCategory;
+    const field = input.dataset.slaField;
+    const raw = String(input.value || "").trim();
+    if (!raw) return;
+    const value = Number(raw);
+    if (!Number.isFinite(value) || value < 1) return;
+    output[category] ||= {};
+    output[category][field] = Math.round(value);
+  });
+  return output;
 }
 
 
@@ -530,6 +570,7 @@ function adminSectionCards() {
     devices: [els.physicalDevicesAdminCard],
     qr: [els.qrAdminCard],
     communications: [els.communicationsAdminCard],
+    "city-compliance": [els.cityComplianceCard],
     safety: [els.safetyManagementCard]
   };
 }
@@ -555,6 +596,41 @@ function setAdminSection(section) {
   });
   if (state.activeAdminSection === "communications") loadAnnouncements();
   if (state.activeAdminSection === "safety") loadSafetyManagement();
+  if (state.activeAdminSection === "city-compliance") loadCityCompliance();
+}
+
+async function cityApi(path, options = {}) {
+  const separator = path.includes("?") ? "&" : "?";
+  const response = await fetch(`${API}${path}${separator}control_center_code=${encodeURIComponent(currentControlCenterCode())}`, { ...options, headers: { ...apiHeaders(), ...(options.headers || {}) } });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || data.status === "error") throw new Error(data.message || `HTTP ${response.status}`);
+  return data;
+}
+
+function renderCityCompliance() {
+  document.getElementById("cityAssetsList").innerHTML = state.cityAssets.length ? state.cityAssets.map((item) => `<div class="user-row"><div><strong>${escapeHtml(item.asset_type)} · ${escapeHtml(item.name)}</strong><div class="user-meta">${escapeHtml(item.code)} · ${Number(item.latitude).toFixed(5)}, ${Number(item.longitude).toFixed(5)} · ${escapeHtml(item.sharing_status)}</div></div><span class="status-badge active">${escapeHtml(item.status)}</span></div>`).join("") : '<div class="empty-state compact-empty">Sin activos geoespaciales registrados</div>';
+  document.getElementById("cityFactorsList").innerHTML = state.cityFactors.length ? state.cityFactors.slice(0,30).map((item) => `<div class="user-row"><div><strong>${escapeHtml(item.factor_type)} · ${escapeHtml(item.title)}</strong><div class="user-meta">Severidad ${escapeHtml(item.severity)} · ${escapeHtml(formatDate(item.observed_at))}</div></div><span class="status-badge">${escapeHtml(item.status)}</span></div>`).join("") : '<div class="empty-state compact-empty">Sin observaciones territoriales</div>';
+}
+
+async function loadCityCompliance() {
+  try { const [assets,factors]=await Promise.all([cityApi("/city/assets"),cityApi("/city/criminogenic-factors")]); state.cityAssets=assets.assets||[]; state.cityFactors=factors.observations||[]; renderCityCompliance(); } catch(error){ toast(error.message); }
+}
+
+async function saveCityAsset() {
+  try { await cityApi("/city/assets",{method:"POST",body:JSON.stringify({asset_type:document.getElementById("cityAssetType").value,code:document.getElementById("cityAssetCode").value.trim(),name:document.getElementById("cityAssetName").value.trim(),owner_organization:document.getElementById("cityAssetOwner").value.trim(),latitude:Number(document.getElementById("cityAssetLatitude").value),longitude:Number(document.getElementById("cityAssetLongitude").value),sharing_status:document.getElementById("cityAssetSharing").value,retention_days:document.getElementById("cityAssetRetention").value?Number(document.getElementById("cityAssetRetention").value):null})}); toast("Activo geoespacial guardado"); await loadCityCompliance(); } catch(error){toast(error.message);}
+}
+
+async function saveCityFactor() {
+  try { await cityApi("/city/criminogenic-factors",{method:"POST",body:JSON.stringify({factor_type:document.getElementById("cityFactorType").value,severity:Number(document.getElementById("cityFactorSeverity").value),title:document.getElementById("cityFactorTitle").value.trim(),description:document.getElementById("cityFactorDescription").value.trim(),latitude:Number(document.getElementById("cityFactorLatitude").value),longitude:Number(document.getElementById("cityFactorLongitude").value)})}); toast("Observación territorial registrada"); await loadCityCompliance(); } catch(error){toast(error.message);}
+}
+
+async function downloadCityExport(path, fileName) {
+  try { const separator=path.includes("?")?"&":"?"; const response=await fetch(`${API}${path}${separator}control_center_code=${encodeURIComponent(currentControlCenterCode())}`,{headers:apiHeaders()}); if(!response.ok)throw new Error(`HTTP ${response.status}`); const url=URL.createObjectURL(await response.blob()); const link=document.createElement("a"); link.href=url; link.download=fileName; link.click(); setTimeout(()=>URL.revokeObjectURL(url),2000); } catch(error){toast(error.message);}
+}
+
+async function createExternalClient() {
+  const scopes=[]; if(document.getElementById("scopeAssetsRead").checked)scopes.push("ASSETS_READ"); if(document.getElementById("scopeIncidentsRead").checked)scopes.push("INCIDENTS_READ"); if(document.getElementById("scopeLprRead").checked)scopes.push("LPR_READ");
+  try { const data=await cityApi("/admin/interoperability/clients",{method:"POST",body:JSON.stringify({agency_name:document.getElementById("cityExternalAgency").value.trim(),scopes,expires_at:document.getElementById("cityExternalExpiry").value||null})}); const box=document.getElementById("cityExternalTokenResult"); box.hidden=false; box.textContent=`Credencial mostrada una sola vez: ${data.token}\nAlcances: ${data.client.scopes.join(", ")}\nNo desplegar una credencial de demo sin convenio y gestor de secretos.`; } catch(error){toast(error.message);}
 }
 
 function announcementDateValue(value) {
@@ -798,6 +874,7 @@ function renderPlatformSettings(settings = {}) {
   const np = settings.notification_policy || {};
   const ip = settings.incident_policy || {};
   const rp = settings.resolver_policy || {};
+  const sla = settings.sla_policy || {};
   const neighborApp = settings.neighbor_app || {};
   const operatorTools = settings.operator_tools || {};
   const safetyModules = settings.safety_modules || {};
@@ -834,6 +911,14 @@ function renderPlatformSettings(settings = {}) {
   document.getElementById("cfgDedupWindow").value = ip.dedup_window_minutes ?? 120;
   document.getElementById("cfgResolverGpsAge").value = rp.max_location_age_seconds ?? 180;
   renderNeighborCategories(neighborApp.emergency_categories || DEFAULT_NEIGHBOR_EMERGENCY_CATEGORIES);
+  setBool("cfgSlaEnabled", sla.enabled !== false);
+  setBool("cfgSlaAutoReassign", sla.automatic_reassignment_enabled !== false);
+  setBool("cfgSlaNotifyCentral", sla.notify_central_on_breach !== false);
+  document.getElementById("cfgSlaAck").value = sla.acknowledgement_minutes ?? 5;
+  document.getElementById("cfgSlaAssign").value = sla.assignment_minutes ?? 15;
+  document.getElementById("cfgSlaAccept").value = sla.acceptance_minutes ?? 5;
+  document.getElementById("cfgSlaResolve").value = sla.resolution_minutes ?? 60;
+  renderSlaCategoryPolicies(neighborApp.emergency_categories || DEFAULT_NEIGHBOR_EMERGENCY_CATEGORIES, sla);
   setNearbyCategories(np.categories || neighborCategoryDraft.filter(category => category.allow_nearby_notifications).map(category => category.type));
   const emergencyByKey = new Map((operatorTools.emergency_contacts || []).map(contact => [contact.key, contact]));
   setBool("cfgOperatorDashboard", (operatorTools.dashboard_roles || []).includes("OPERATOR"));
@@ -892,6 +977,17 @@ function collectPlatformSettings() {
       auto_assignment_enabled: boolValue("cfgResolverAutoAssign"),
       max_location_age_seconds: numberValue("cfgResolverGpsAge", 180),
       max_active_tickets: 1
+    },
+    sla_policy: {
+      enabled: boolValue("cfgSlaEnabled"),
+      automatic_reassignment_enabled: boolValue("cfgSlaAutoReassign"),
+      notify_central_on_breach: boolValue("cfgSlaNotifyCentral"),
+      acknowledgement_minutes: numberValue("cfgSlaAck", 5),
+      assignment_minutes: numberValue("cfgSlaAssign", 15),
+      acceptance_minutes: numberValue("cfgSlaAccept", 5),
+      resolution_minutes: numberValue("cfgSlaResolve", 60),
+      by_priority: state.platformSettings?.sla_policy?.by_priority || {},
+      by_category: collectSlaCategoryPolicies()
     },
     operator_tools: {
       dashboard_roles: boolValue("cfgOperatorDashboard") ? ["OPERATOR", "ADMIN", "SUPER_ADMIN"] : ["ADMIN", "SUPER_ADMIN"],
@@ -2475,6 +2571,13 @@ document.getElementById("reloadQrButton")?.addEventListener("click", loadQrPoint
 document.getElementById("createQrButton")?.addEventListener("click", createQrPoint);
 document.getElementById("reloadAnnouncementsButton")?.addEventListener("click", loadAnnouncements);
 document.getElementById("createAnnouncementButton")?.addEventListener("click", createAnnouncement);
+document.getElementById("reloadCityCompliance")?.addEventListener("click", loadCityCompliance);
+document.getElementById("saveCityAsset")?.addEventListener("click", saveCityAsset);
+document.getElementById("saveCityFactor")?.addEventListener("click", saveCityFactor);
+document.getElementById("exportCityAssetsGeojson")?.addEventListener("click", () => downloadCityExport("/city/assets/export", "queltu-activos.geojson"));
+document.getElementById("exportCityAssetsCsv")?.addEventListener("click", () => downloadCityExport("/city/assets/export?format=csv", "queltu-activos.csv"));
+document.getElementById("exportCityFactorsCsv")?.addEventListener("click", () => downloadCityExport("/city/criminogenic-factors/report?format=csv", "queltu-factores.csv"));
+document.getElementById("createExternalClient")?.addEventListener("click", createExternalClient);
 document.getElementById("announcementAudience")?.addEventListener("change", (event) => {
   document.getElementById("announcementTargetField").hidden = event.target.value !== "PERSONAL";
 });
