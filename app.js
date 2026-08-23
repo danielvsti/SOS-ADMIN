@@ -908,6 +908,7 @@ function renderPlatformSettings(settings = {}) {
   const vp = settings.voice_policy || {};
   const np = settings.notification_policy || {};
   const ip = settings.incident_policy || {};
+  const ap = settings.abuse_prevention_policy || {};
   const rp = settings.resolver_policy || {};
   const sla = settings.sla_policy || {};
   const neighborApp = settings.neighbor_app || {};
@@ -945,6 +946,12 @@ function renderPlatformSettings(settings = {}) {
   document.getElementById("cfgDedupRadius").value = ip.dedup_radius_meters ?? 120;
   document.getElementById("cfgDedupWindow").value = ip.dedup_window_minutes ?? 120;
   document.getElementById("cfgResolverGpsAge").value = rp.max_location_age_seconds ?? 180;
+  setBool("cfgAbusePreventionEnabled", ap.enabled !== false);
+  document.getElementById("cfgAbuseRapidThreshold").value = ap.rapid_activation_threshold ?? 3;
+  document.getElementById("cfgAbuseRapidWindow").value = ap.rapid_window_minutes ?? 10;
+  document.getElementById("cfgAbuseDailyThreshold").value = ap.daily_activation_threshold ?? 5;
+  document.getElementById("cfgAbuseFalseAlarmThreshold").value = ap.false_alarm_threshold ?? 2;
+  document.getElementById("cfgAbuseHistoryDays").value = ap.false_alarm_window_days ?? 30;
   renderNeighborCategories(neighborApp.emergency_categories || DEFAULT_NEIGHBOR_EMERGENCY_CATEGORIES);
   setBool("cfgSlaEnabled", sla.enabled !== false);
   setBool("cfgSlaRequireAck", sla.require_central_acknowledgement === true);
@@ -1008,6 +1015,18 @@ function collectPlatformSettings() {
       dedup_enabled: boolValue("cfgMultiReports"),
       dedup_radius_meters: numberValue("cfgDedupRadius", 120),
       dedup_window_minutes: numberValue("cfgDedupWindow", 120)
+    },
+    abuse_prevention_policy: {
+      enabled: boolValue("cfgAbusePreventionEnabled"),
+      mode: "FLAG_ONLY",
+      rapid_activation_threshold: numberValue("cfgAbuseRapidThreshold", 3),
+      rapid_window_minutes: numberValue("cfgAbuseRapidWindow", 10),
+      daily_activation_threshold: numberValue("cfgAbuseDailyThreshold", 5),
+      false_alarm_threshold: numberValue("cfgAbuseFalseAlarmThreshold", 2),
+      false_alarm_window_days: numberValue("cfgAbuseHistoryDays", 30),
+      medium_score_threshold: state.platformSettings?.abuse_prevention_policy?.medium_score_threshold ?? 30,
+      high_score_threshold: state.platformSettings?.abuse_prevention_policy?.high_score_threshold ?? 60,
+      excluded_categories: ["VIF", "VIF_SILENT_SHAKE", "FALL_DETECTED"]
     },
     resolver_policy: {
       auto_assignment_enabled: boolValue("cfgResolverAutoAssign"),

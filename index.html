@@ -166,6 +166,20 @@
         </div>
 
         <div class="settings-pane wide-pane">
+          <h3>Validación preventiva de activaciones</h3>
+          <p class="muted small-note">Detecta reincidencia, ráfagas y falsas alarmas declaradas. Solo advierte a la Central: nunca bloquea, descarta ni retrasa automáticamente una emergencia.</p>
+          <label class="check-row"><input id="cfgAbusePreventionEnabled" type="checkbox" /> Analizar señales de activación reiterada</label>
+          <div class="edit-grid">
+            <label>Activaciones rápidas para advertir<input id="cfgAbuseRapidThreshold" type="number" min="2" max="50" /></label>
+            <label>Ventana rápida (minutos)<input id="cfgAbuseRapidWindow" type="number" min="1" max="1440" /></label>
+            <label>Activaciones en 24 h para advertir<input id="cfgAbuseDailyThreshold" type="number" min="2" max="100" /></label>
+            <label>Falsas alarmas declaradas para advertir<input id="cfgAbuseFalseAlarmThreshold" type="number" min="1" max="50" /></label>
+            <label>Historial de falsas alarmas (días)<input id="cfgAbuseHistoryDays" type="number" min="1" max="365" /></label>
+          </div>
+          <div class="hint-text">VIF, alertas silenciosas y detecciones automáticas de caída quedan excluidas por seguridad. La advertencia exige criterio humano y queda auditada.</div>
+        </div>
+
+        <div class="settings-pane wide-pane">
           <h3>SLA y escalamiento operacional</h3>
           <p class="muted small-note">Los plazos se congelan en cada ticket para auditoría. Una asignación vencida puede liberarse y reasignarse automáticamente.</p>
           <label class="check-row"><input id="cfgSlaEnabled" type="checkbox" /> Aplicar SLA a nuevos tickets</label>
