@@ -128,6 +128,7 @@ const DEFAULT_NEIGHBOR_EMERGENCY_CATEGORIES = [
 ];
 
 let neighborCategoryDraft = [];
+let slaCategoryPolicyDraft = {};
 
 function effectiveExperience(settings = state.platformSettings || {}) {
   const vertical = ["CITY", "MINING", "INDUSTRY"].includes(String(settings.vertical || "").toUpperCase())
@@ -316,10 +317,13 @@ function collectNeighborCategories() {
   return normalizeNeighborCategories(categories);
 }
 
-function renderSlaCategoryPolicies(categories = [], slaPolicy = {}) {
+function renderSlaCategoryPolicies(categories = [], slaPolicy = null) {
   const container = document.getElementById("cfgSlaCategoryRows");
   if (!container) return;
-  const overrides = slaPolicy.by_category || {};
+  if (slaPolicy !== null) {
+    slaCategoryPolicyDraft = JSON.parse(JSON.stringify(slaPolicy.by_category || {}));
+  }
+  const overrides = slaCategoryPolicyDraft;
   container.innerHTML = normalizeNeighborCategories(categories)
     .filter(category => category.enabled !== false)
     .map(category => {
@@ -336,18 +340,30 @@ function renderSlaCategoryPolicies(categories = [], slaPolicy = {}) {
 }
 
 function collectSlaCategoryPolicies() {
-  const output = {};
+  const output = JSON.parse(JSON.stringify(slaCategoryPolicyDraft || {}));
   document.querySelectorAll("#cfgSlaCategoryRows [data-sla-category]").forEach(input => {
     const category = input.dataset.slaCategory;
     const field = input.dataset.slaField;
     const raw = String(input.value || "").trim();
-    if (!raw) return;
+    output[category] ||= {};
+    if (!raw) {
+      delete output[category][field];
+      return;
+    }
     const value = Number(raw);
     if (!Number.isFinite(value) || value < 1) return;
-    output[category] ||= {};
     output[category][field] = Math.round(value);
   });
+  Object.keys(output).forEach(category => {
+    if (!Object.keys(output[category] || {}).length) delete output[category];
+  });
+  slaCategoryPolicyDraft = output;
   return output;
+}
+
+function syncSlaCategoriesFromNeighborDraft() {
+  const overrides = collectSlaCategoryPolicies();
+  renderSlaCategoryPolicies(collectNeighborCategories(), { by_category: overrides });
 }
 
 
@@ -2607,6 +2623,11 @@ document.getElementById("announcementMediaUrl")?.addEventListener("paste", () =>
 els.nearbyCategoryChips?.addEventListener("click", (event) => {
   const button = event.target.closest("[data-category]");
   if (button) toggleNearbyCategory(button.dataset.category);
+});
+els.neighborCategoryList?.addEventListener("change", (event) => {
+  if (event.target.closest("[data-neighbor-category-enabled], [data-neighbor-category-alias], [data-neighbor-category-order]")) {
+    syncSlaCategoriesFromNeighborDraft();
+  }
 });
 
 
