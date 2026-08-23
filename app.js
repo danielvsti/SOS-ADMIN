@@ -909,6 +909,7 @@ function renderPlatformSettings(settings = {}) {
   const np = settings.notification_policy || {};
   const ip = settings.incident_policy || {};
   const ap = settings.abuse_prevention_policy || {};
+  const tp = settings.alert_credibility_policy || {};
   const rp = settings.resolver_policy || {};
   const sla = settings.sla_policy || {};
   const neighborApp = settings.neighbor_app || {};
@@ -946,7 +947,13 @@ function renderPlatformSettings(settings = {}) {
   document.getElementById("cfgDedupRadius").value = ip.dedup_radius_meters ?? 120;
   document.getElementById("cfgDedupWindow").value = ip.dedup_window_minutes ?? 120;
   document.getElementById("cfgResolverGpsAge").value = rp.max_location_age_seconds ?? 180;
-  setBool("cfgAbusePreventionEnabled", ap.enabled !== false);
+  setBool("cfgAbusePreventionEnabled", tp.enabled !== false && ap.enabled !== false);
+  document.getElementById("cfgCitizenCredibilityThreshold").value = tp.citizen_threshold ?? 60;
+  document.getElementById("cfgEventCredibilityThreshold").value = tp.event_threshold ?? 60;
+  document.getElementById("cfgAlertCredibilityThreshold").value = tp.alert_threshold ?? 60;
+  document.getElementById("cfgEventCredibilityRadius").value = tp.event_radius_meters ?? 300;
+  document.getElementById("cfgEventCorroborationWindow").value = tp.corroboration_window_minutes ?? 120;
+  document.getElementById("cfgEventCredibilityDays").value = tp.event_history_days ?? 30;
   document.getElementById("cfgAbuseRapidThreshold").value = ap.rapid_activation_threshold ?? 3;
   document.getElementById("cfgAbuseRapidWindow").value = ap.rapid_window_minutes ?? 10;
   document.getElementById("cfgAbuseDailyThreshold").value = ap.daily_activation_threshold ?? 5;
@@ -1027,6 +1034,17 @@ function collectPlatformSettings() {
       medium_score_threshold: state.platformSettings?.abuse_prevention_policy?.medium_score_threshold ?? 30,
       high_score_threshold: state.platformSettings?.abuse_prevention_policy?.high_score_threshold ?? 60,
       excluded_categories: ["VIF", "VIF_SILENT_SHAKE", "FALL_DETECTED"]
+    },
+    alert_credibility_policy: {
+      enabled: boolValue("cfgAbusePreventionEnabled"),
+      mode: "HUMAN_REVIEW_ONLY",
+      citizen_threshold: numberValue("cfgCitizenCredibilityThreshold", 60),
+      event_threshold: numberValue("cfgEventCredibilityThreshold", 60),
+      alert_threshold: numberValue("cfgAlertCredibilityThreshold", 60),
+      event_radius_meters: numberValue("cfgEventCredibilityRadius", 300),
+      corroboration_window_minutes: numberValue("cfgEventCorroborationWindow", 120),
+      event_history_days: numberValue("cfgEventCredibilityDays", 30),
+      critical_categories: ["VIF", "VIF_SILENT_SHAKE", "MEDICAL", "FIRE", "FALL_DETECTED"]
     },
     resolver_policy: {
       auto_assignment_enabled: boolValue("cfgResolverAutoAssign"),

@@ -166,9 +166,18 @@
         </div>
 
         <div class="settings-pane wide-pane">
-          <h3>Validación preventiva de activaciones</h3>
-          <p class="muted small-note">Detecta reincidencia, ráfagas y falsas alarmas declaradas. Solo advierte a la Central: nunca bloquea, descarta ni retrasa automáticamente una emergencia.</p>
-          <label class="check-row"><input id="cfgAbusePreventionEnabled" type="checkbox" /> Analizar señales de activación reiterada</label>
+          <h3>Confianza operacional de la alerta</h3>
+          <p class="muted small-note"><strong>F(Alerta) = Credibilidad Vecino × Credibilidad Evento.</strong> Si un ranking queda bajo su umbral, el ticket permanece visible y exige intervención del operador antes de asignarlo.</p>
+          <label class="check-row"><input id="cfgAbusePreventionEnabled" type="checkbox" /> Evaluar rankings explicables en nuevos tickets</label>
+          <div class="edit-grid">
+            <label>Umbral credibilidad Vecino (%)<input id="cfgCitizenCredibilityThreshold" type="number" min="1" max="100" /></label>
+            <label>Umbral credibilidad Evento (%)<input id="cfgEventCredibilityThreshold" type="number" min="1" max="100" /></label>
+            <label>Umbral F(Alerta) (%)<input id="cfgAlertCredibilityThreshold" type="number" min="1" max="100" /></label>
+            <label>Radio de eventos similares (metros)<input id="cfgEventCredibilityRadius" type="number" min="25" max="5000" /></label>
+            <label>Ventana de corroboración vecinal (minutos)<input id="cfgEventCorroborationWindow" type="number" min="1" max="1440" /></label>
+            <label>Historial del evento (días)<input id="cfgEventCredibilityDays" type="number" min="1" max="365" /></label>
+          </div>
+          <p class="muted small-note"><strong>Señales de credibilidad del Vecino</strong></p>
           <div class="edit-grid">
             <label>Activaciones rápidas para advertir<input id="cfgAbuseRapidThreshold" type="number" min="2" max="50" /></label>
             <label>Ventana rápida (minutos)<input id="cfgAbuseRapidWindow" type="number" min="1" max="1440" /></label>
@@ -176,7 +185,7 @@
             <label>Falsas alarmas declaradas para advertir<input id="cfgAbuseFalseAlarmThreshold" type="number" min="1" max="50" /></label>
             <label>Historial de falsas alarmas (días)<input id="cfgAbuseHistoryDays" type="number" min="1" max="365" /></label>
           </div>
-          <div class="hint-text">VIF, alertas silenciosas y detecciones automáticas de caída quedan excluidas por seguridad. La advertencia exige criterio humano y queda auditada.</div>
+          <div class="hint-text">VIF, emergencias médicas, incendios y caídas no se detienen por ranking: continúan como categorías críticas y generan revisión prioritaria en paralelo. Ningún ranking cancela una emergencia.</div>
         </div>
 
         <div class="settings-pane wide-pane">
