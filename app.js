@@ -156,6 +156,7 @@ function applyVerticalExperience(settings = {}) {
   const { vertical, ui, terminology, organizationName } = effectiveExperience(settings);
   const incidentPlural = vertical === "CITY" ? "reportes ciudadanos" : "reportes operacionales";
   const zoneLower = String(terminology.zone || "zona").toLocaleLowerCase("es");
+  const responderLower = String(terminology.responder || "Resolutor").toLocaleLowerCase("es");
 
   document.title = `QUELTU · ${ui.pageTitle}`;
   setText("adminPageTitle", organizationName ? `Administración · ${organizationName}` : ui.pageTitle);
@@ -171,7 +172,7 @@ function applyVerticalExperience(settings = {}) {
   setText("mobileAppFeatureLabel", `App ${terminology.endUser} habilitada`);
   setText("responderAppFeatureLabel", `App ${terminology.responder} habilitada`);
   setText("multiReportsFeatureLabel", `Agrupar múltiples ${incidentPlural}`);
-  setText("responderAutoAssignLabel", `Asignar automáticamente al ${ui.responder.toLocaleLowerCase("es")} disponible`);
+  setText("responderAutoAssignLabel", `Asignar automáticamente al ${responderLower} disponible`);
   setText("userCategoriesTitle", `Categorías visibles en App ${terminology.endUser}`);
   setText("userCategoriesDescription", `QUELTU SuperAdmin administra el catálogo maestro. Aquí habilitas, renombras y ordenas únicamente las categorías aplicables a ${vertical === "CITY" ? "Ciudad" : vertical === "MINING" ? "Minería" : "Industria"}.`);
   setText("userCategoriesHint", `Debe quedar al menos una categoría activa. Las categorías desactivadas se ocultan en la App ${terminology.endUser} y el backend rechaza envíos manipulados.`);
