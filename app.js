@@ -171,7 +171,7 @@ function applyVerticalExperience(settings = {}) {
   setText("mobileAppFeatureLabel", `App ${terminology.endUser} habilitada`);
   setText("responderAppFeatureLabel", `App ${terminology.responder} habilitada`);
   setText("multiReportsFeatureLabel", `Agrupar múltiples ${incidentPlural}`);
-  setText("responderAutoAssignLabel", `Autoasignación de ${ui.responders.toLocaleLowerCase("es")}`);
+  setText("responderAutoAssignLabel", `Asignar automáticamente al ${ui.responder.toLocaleLowerCase("es")} disponible`);
   setText("userCategoriesTitle", `Categorías visibles en App ${terminology.endUser}`);
   setText("userCategoriesDescription", `QUELTU SuperAdmin administra el catálogo maestro. Aquí habilitas, renombras y ordenas únicamente las categorías aplicables a ${vertical === "CITY" ? "Ciudad" : vertical === "MINING" ? "Minería" : "Industria"}.`);
   setText("userCategoriesHint", `Debe quedar al menos una categoría activa. Las categorías desactivadas se ocultan en la App ${terminology.endUser} y el backend rechaza envíos manipulados.`);
@@ -326,7 +326,7 @@ function renderSlaCategoryPolicies(categories = [], slaPolicy = {}) {
       const field = (name, max) => `<input type="number" min="1" max="${max}" placeholder="General" value="${values[name] ?? ""}" data-sla-category="${escapeHtml(category.type)}" data-sla-field="${name}">`;
       return `<div class="sla-category-row">
         <span class="sla-category-name"><span>${escapeHtml(category.icon || "🆘")}</span><strong>${escapeHtml(categoryDisplayTitle(category))}</strong></span>
-        <label>Reconocer${field("acknowledgement_minutes", 10080)}</label>
+        <label>Confirmar Central${field("acknowledgement_minutes", 10080)}</label>
         <label>Asignar${field("assignment_minutes", 10080)}</label>
         <label>Aceptar${field("acceptance_minutes", 1440)}</label>
         <label>Resolver${field("resolution_minutes", 43200)}</label>
@@ -782,6 +782,24 @@ function updateVoicePolicyUi() {
 function updatePolicyDependencies() {
   updateSirenPolicyUi();
   updateVoicePolicyUi();
+  const slaEnabled = boolValue("cfgSlaEnabled");
+  const centralAckRequired = slaEnabled && boolValue("cfgSlaRequireAck");
+  const autoAssignmentEnabled = boolValue("cfgResolverAutoAssign");
+  const dispatchModeStatus = document.getElementById("dispatchModeStatus");
+  if (dispatchModeStatus) {
+    dispatchModeStatus.textContent = autoAssignmentEnabled
+      ? centralAckRequired
+        ? "Modo actual: automático supervisado. El sistema asigna y Central debe confirmar la revisión."
+        : "Modo actual: automático. El sistema asigna de inmediato y no exige confirmación humana."
+      : centralAckRequired
+        ? "Modo actual: manual con revisión. Central confirma el caso y decide a qué equipo asignarlo."
+        : "Modo actual: manual sin confirmación. Recomendamos exigir confirmación humana para mantener trazabilidad.";
+  }
+  const ackInput = document.getElementById("cfgSlaAck");
+  if (ackInput) ackInput.disabled = !centralAckRequired;
+  document.querySelectorAll('[data-sla-field="acknowledgement_minutes"]').forEach((input) => {
+    input.disabled = !centralAckRequired;
+  });
 }
 
 function boolValue(id) {
@@ -912,6 +930,7 @@ function renderPlatformSettings(settings = {}) {
   document.getElementById("cfgResolverGpsAge").value = rp.max_location_age_seconds ?? 180;
   renderNeighborCategories(neighborApp.emergency_categories || DEFAULT_NEIGHBOR_EMERGENCY_CATEGORIES);
   setBool("cfgSlaEnabled", sla.enabled !== false);
+  setBool("cfgSlaRequireAck", sla.require_central_acknowledgement === true);
   setBool("cfgSlaAutoReassign", sla.automatic_reassignment_enabled !== false);
   setBool("cfgSlaNotifyCentral", sla.notify_central_on_breach !== false);
   document.getElementById("cfgSlaAck").value = sla.acknowledgement_minutes ?? 5;
@@ -980,6 +999,7 @@ function collectPlatformSettings() {
     },
     sla_policy: {
       enabled: boolValue("cfgSlaEnabled"),
+      require_central_acknowledgement: boolValue("cfgSlaRequireAck"),
       automatic_reassignment_enabled: boolValue("cfgSlaAutoReassign"),
       notify_central_on_breach: boolValue("cfgSlaNotifyCentral"),
       acknowledgement_minutes: numberValue("cfgSlaAck", 5),
@@ -2621,7 +2641,7 @@ els.pageNextButton?.addEventListener("click", () => {
 
 bindSafetyForms();
 
-["cfgSirens", "cfgSecureVoice"].forEach((id) => {
+["cfgSirens", "cfgSecureVoice", "cfgSlaEnabled", "cfgSlaRequireAck", "cfgResolverAutoAssign"].forEach((id) => {
   document.getElementById(id)?.addEventListener("change", updatePolicyDependencies);
 });
 

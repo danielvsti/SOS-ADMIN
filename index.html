@@ -126,7 +126,8 @@
           <label class="check-row"><input id="cfgSirens" type="checkbox" /> Sirenas habilitadas</label>
           <label class="check-row"><input id="cfgSecureVoice" type="checkbox" /> Llamadas seguras habilitadas</label>
           <label class="check-row"><input id="cfgMultiReports" type="checkbox" /> <span id="multiReportsFeatureLabel">Agrupar múltiples reportes</span></label>
-          <label class="check-row"><input id="cfgResolverAutoAssign" type="checkbox" /> <span id="responderAutoAssignLabel">Autoasignación de respondedores</span></label>
+          <label class="check-row"><input id="cfgResolverAutoAssign" type="checkbox" /> <span id="responderAutoAssignLabel">Asignar automáticamente al equipo disponible</span></label>
+          <div id="dispatchModeStatus" class="hint-text">Activada: el sistema despacha inmediatamente. Desactivada: el ticket queda en Central para revisión y asignación manual.</div>
         </div>
 
 
@@ -168,10 +169,12 @@
           <h3>SLA y escalamiento operacional</h3>
           <p class="muted small-note">Los plazos se congelan en cada ticket para auditoría. Una asignación vencida puede liberarse y reasignarse automáticamente.</p>
           <label class="check-row"><input id="cfgSlaEnabled" type="checkbox" /> Aplicar SLA a nuevos tickets</label>
+          <label class="check-row"><input id="cfgSlaRequireAck" type="checkbox" /> Exigir confirmación humana de Central</label>
+          <p class="muted small-note">Úsala en operación manual o automática supervisada. Si no se exige, la recepción técnica es inmediata y no genera incumplimientos de confirmación.</p>
           <label class="check-row"><input id="cfgSlaAutoReassign" type="checkbox" /> Reasignar si el equipo no acepta a tiempo</label>
           <label class="check-row"><input id="cfgSlaNotifyCentral" type="checkbox" /> Registrar alerta visible para la central ante incumplimiento</label>
           <div class="edit-grid sla-default-grid">
-            <label>Reconocimiento (min)<input id="cfgSlaAck" type="number" min="1" max="10080" /></label>
+            <label>Confirmación Central (min)<input id="cfgSlaAck" type="number" min="1" max="10080" /></label>
             <label>Asignación (min)<input id="cfgSlaAssign" type="number" min="1" max="10080" /></label>
             <label>Aceptación móvil (min)<input id="cfgSlaAccept" type="number" min="1" max="1440" /></label>
             <label>Resolución (min)<input id="cfgSlaResolve" type="number" min="1" max="43200" /></label>
@@ -638,6 +641,6 @@
   <div id="toast" class="toast" hidden></div>
 
   <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
-  <script src="app.js?v=city-compliance-v1"></script>
+  <script src="app.js?v=city-central-ack-v1"></script>
 </body>
 </html>
