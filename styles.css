@@ -73,6 +73,51 @@
   .safety-pnr-table-row .safety-row-actions { justify-content: flex-start; flex-wrap: wrap; }
 }
 
+.inspection-category-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 14px 0;
+}
+
+.inspection-category-option {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 14px;
+  background: #f8fafc;
+}
+
+.inspection-category-option input {
+  width: 22px;
+  height: 22px;
+  margin: 0;
+}
+
+.inspection-category-option .emoji {
+  font-size: 24px;
+}
+
+.inspection-category-option span:last-child {
+  display: grid;
+  gap: 2px;
+}
+
+.inspection-category-option small {
+  color: #64748b;
+  font-size: 11px;
+}
+
+@media (max-width: 760px) {
+  .inspection-category-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .city-compliance-card .users-list { max-height: 320px; overflow: auto; margin-top: 14px; }
 .city-compliance-card .checkbox-list { display: grid; gap: 8px; margin: 14px 0; }
 .city-compliance-card .bulk-result { white-space: pre-wrap; overflow-wrap: anywhere; }

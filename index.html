@@ -138,6 +138,14 @@
           <div id="neighborCategoryList" class="neighbor-category-list" aria-label="Categorías visibles en App Usuario"></div>
           <div class="hint-text" id="userCategoriesHint">Debe quedar al menos una categoría activa. Las categorías desactivadas se ocultan y el backend rechaza envíos manipulados.</div>
         </div>
+        <div class="settings-pane wide-pane">
+          <h3 id="resolverInspectionsTitle">Inspecciones de terreno · Resolutor</h3>
+          <p class="muted small-note" id="resolverInspectionsDescription">Define qué categorías puede utilizar el resolutor al convertir un hallazgo de inspección en una alerta visible para la Central.</p>
+          <label class="check-row"><input id="cfgResolverInspections" type="checkbox" /> Permitir registrar inspecciones autónomas en terreno</label>
+          <label class="check-row"><input id="cfgResolverInspectionAlerts" type="checkbox" /> Permitir crear tickets georreferenciados desde hallazgos</label>
+          <div id="resolverInspectionCategoryList" class="inspection-category-grid" aria-label="Categorías autorizadas para hallazgos de inspección"></div>
+          <div class="hint-text">Puedes seleccionar categorías visibles al vecino y categorías exclusivas del resolutor. El ticket conserva el origen “Inspección de terreno” para su auditoría.</div>
+        </div>
         <div class="settings-pane" data-physical-buttons-policy>
           <h3>Botones SOS físicos</h3>
           <p class="muted small-note" id="physicalButtonsDescription">Dispositivos físicos de emergencia instalados en la zona operacional que generan un ticket directo sin pasar por la app.</p>
@@ -664,6 +672,6 @@
   <div id="toast" class="toast" hidden></div>
 
   <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
-  <script src="app.js?v=city-sla-categories-v1"></script>
+  <script src="app.js?v=resolver-inspections-v1"></script>
 </body>
 </html>

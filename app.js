@@ -129,6 +129,7 @@ const DEFAULT_NEIGHBOR_EMERGENCY_CATEGORIES = [
 
 let neighborCategoryDraft = [];
 let slaCategoryPolicyDraft = {};
+let resolverInspectionCategoryDraft = [];
 
 function effectiveExperience(settings = state.platformSettings || {}) {
   const vertical = ["CITY", "MINING", "INDUSTRY"].includes(String(settings.vertical || "").toUpperCase())
@@ -177,6 +178,8 @@ function applyVerticalExperience(settings = {}) {
   setText("userCategoriesTitle", `Categorías visibles en App ${terminology.endUser}`);
   setText("userCategoriesDescription", `QUELTU SuperAdmin administra el catálogo maestro. Aquí habilitas, renombras y ordenas únicamente las categorías aplicables a ${vertical === "CITY" ? "Ciudad" : vertical === "MINING" ? "Minería" : "Industria"}.`);
   setText("userCategoriesHint", `Debe quedar al menos una categoría activa. Las categorías desactivadas se ocultan en la App ${terminology.endUser} y el backend rechaza envíos manipulados.`);
+  setText("resolverInspectionsTitle", `Inspecciones de terreno · ${terminology.responder}`);
+  setText("resolverInspectionsDescription", `Define qué categorías puede utilizar el ${terminology.responder.toLocaleLowerCase("es")} al convertir un hallazgo de inspección en una alerta visible para la Central.`);
   setText("physicalButtonsDescription", `Dispositivos físicos de emergencia instalados en la ${zoneLower} que generan un ticket directo sin pasar por la app.`);
   setText("operatorDirectoryTitle", `Directorio de emergencia del ${terminology.operator}`);
   const emergencyLabels = vertical === "MINING"
@@ -253,6 +256,36 @@ function normalizeNeighborCategories(rawCategories = []) {
 
 function categoryDisplayTitle(category) {
   return String(category.title_override || category.title || category.catalog_title || category.type || "").trim();
+}
+
+function renderResolverInspectionCategories(categories = neighborCategoryDraft, policy = {}) {
+  const container = document.getElementById("resolverInspectionCategoryList");
+  if (!container) return;
+  const explicit = Array.isArray(policy.category_types)
+    ? policy.category_types.map(value => String(value || "").trim().toUpperCase()).filter(Boolean)
+    : [];
+  const selected = new Set(explicit.length
+    ? explicit
+    : categories.filter(category => category.enabled !== false).map(category => category.type));
+  resolverInspectionCategoryDraft = categories.map(category => ({ ...category }));
+  container.innerHTML = resolverInspectionCategoryDraft.map(category => {
+    const visibleToNeighbor = category.enabled !== false;
+    return `
+      <label class="inspection-category-option">
+        <input type="checkbox" data-resolver-inspection-category="${escapeHtml(category.type)}" ${selected.has(category.type) ? "checked" : ""}>
+        <span class="emoji">${escapeHtml(category.icon || "📝")}</span>
+        <span><strong>${escapeHtml(categoryDisplayTitle(category))}</strong><small>${visibleToNeighbor ? "También visible al vecino" : "Solo disponible para inspección"}</small></span>
+      </label>
+    `;
+  }).join("");
+}
+
+function collectResolverInspectionCategories() {
+  const container = document.getElementById("resolverInspectionCategoryList");
+  if (!container) return [];
+  return [...container.querySelectorAll("[data-resolver-inspection-category]:checked")]
+    .map(input => String(input.dataset.resolverInspectionCategory || "").trim().toUpperCase())
+    .filter(Boolean);
 }
 
 function renderNeighborCategories(categories = DEFAULT_NEIGHBOR_EMERGENCY_CATEGORIES) {
@@ -911,6 +944,7 @@ function renderPlatformSettings(settings = {}) {
   const ap = settings.abuse_prevention_policy || {};
   const tp = settings.alert_credibility_policy || {};
   const rp = settings.resolver_policy || {};
+  const inspectionPolicy = settings.resolver_inspection_policy || {};
   const sla = settings.sla_policy || {};
   const neighborApp = settings.neighbor_app || {};
   const operatorTools = settings.operator_tools || {};
@@ -960,6 +994,9 @@ function renderPlatformSettings(settings = {}) {
   document.getElementById("cfgAbuseFalseAlarmThreshold").value = ap.false_alarm_threshold ?? 2;
   document.getElementById("cfgAbuseHistoryDays").value = ap.false_alarm_window_days ?? 30;
   renderNeighborCategories(neighborApp.emergency_categories || DEFAULT_NEIGHBOR_EMERGENCY_CATEGORIES);
+  setBool("cfgResolverInspections", inspectionPolicy.enabled !== false);
+  setBool("cfgResolverInspectionAlerts", inspectionPolicy.allow_alert_creation !== false);
+  renderResolverInspectionCategories(neighborCategoryDraft, inspectionPolicy);
   setBool("cfgSlaEnabled", sla.enabled !== false);
   setBool("cfgSlaRequireAck", sla.require_central_acknowledgement === true);
   setBool("cfgSlaAutoReassign", sla.automatic_reassignment_enabled !== false);
@@ -1050,6 +1087,11 @@ function collectPlatformSettings() {
       auto_assignment_enabled: boolValue("cfgResolverAutoAssign"),
       max_location_age_seconds: numberValue("cfgResolverGpsAge", 180),
       max_active_tickets: 1
+    },
+    resolver_inspection_policy: {
+      enabled: boolValue("cfgResolverInspections"),
+      allow_alert_creation: boolValue("cfgResolverInspectionAlerts"),
+      category_types: collectResolverInspectionCategories()
     },
     sla_policy: {
       enabled: boolValue("cfgSlaEnabled"),
