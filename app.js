@@ -666,6 +666,31 @@ async function loadCityCompliance() {
   try { const [assets,factors]=await Promise.all([cityApi("/city/assets"),cityApi("/city/criminogenic-factors")]); state.cityAssets=assets.assets||[]; state.cityFactors=factors.observations||[]; renderCityCompliance(); } catch(error){ toast(error.message); }
 }
 
+async function seedCityPredictiveDemo() {
+  const code = currentControlCenterCode();
+  const button = document.getElementById("seedCityPredictiveDemo");
+  const status = document.getElementById("cityPredictiveDemoStatus");
+  if (code !== "CC-VINA") {
+    toast("La muestra predictiva está disponible sólo para CC-VINA");
+    return;
+  }
+  button.disabled = true;
+  status.textContent = "Creando muestra histórica…";
+  try {
+    const data = await cityApi(`/admin/control-centers/${encodeURIComponent(code)}/demo/predictive-cases`, {
+      method: "POST",
+      body: JSON.stringify({ confirm: "SEED_CC_VINA_PREDICTIVE_V1" })
+    });
+    status.textContent = `${data.total} tickets cerrados · sin asignación · patrón 21:00–22:00`;
+    toast("Muestra predictiva de Lucía lista");
+  } catch (error) {
+    status.textContent = error.message;
+    toast(error.message);
+  } finally {
+    button.disabled = false;
+  }
+}
+
 async function saveCityAsset() {
   try { await cityApi("/city/assets",{method:"POST",body:JSON.stringify({asset_type:document.getElementById("cityAssetType").value,code:document.getElementById("cityAssetCode").value.trim(),name:document.getElementById("cityAssetName").value.trim(),owner_organization:document.getElementById("cityAssetOwner").value.trim(),latitude:Number(document.getElementById("cityAssetLatitude").value),longitude:Number(document.getElementById("cityAssetLongitude").value),sharing_status:document.getElementById("cityAssetSharing").value,retention_days:document.getElementById("cityAssetRetention").value?Number(document.getElementById("cityAssetRetention").value):null})}); toast("Activo geoespacial guardado"); await loadCityCompliance(); } catch(error){toast(error.message);}
 }
@@ -2693,6 +2718,7 @@ document.getElementById("saveCityFactor")?.addEventListener("click", saveCityFac
 document.getElementById("exportCityAssetsGeojson")?.addEventListener("click", () => downloadCityExport("/city/assets/export", "queltu-activos.geojson"));
 document.getElementById("exportCityAssetsCsv")?.addEventListener("click", () => downloadCityExport("/city/assets/export?format=csv", "queltu-activos.csv"));
 document.getElementById("exportCityFactorsCsv")?.addEventListener("click", () => downloadCityExport("/city/criminogenic-factors/report?format=csv", "queltu-factores.csv"));
+document.getElementById("seedCityPredictiveDemo")?.addEventListener("click", seedCityPredictiveDemo);
 document.getElementById("createExternalClient")?.addEventListener("click", createExternalClient);
 document.getElementById("announcementAudience")?.addEventListener("change", (event) => {
   document.getElementById("announcementTargetField").hidden = event.target.value !== "PERSONAL";
